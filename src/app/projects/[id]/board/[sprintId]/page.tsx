@@ -1,0 +1,53 @@
+import { createClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
+import { KanbanBoard } from "@/features/board/components";
+
+export default async function SprintBoardPage({
+  params,
+}: {
+  params: Promise<{ id: string; sprintId: string }>;
+}) {
+  const { id: projectId, sprintId } = await params;
+  const supabase = await createClient();
+
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
+    .select("id, name")
+    .eq("id", projectId)
+    .single();
+
+  if (projectError || !project) notFound();
+
+  const { data: sprint, error: sprintError } = await supabase
+    .from("sprints")
+    .select("id, name, status, start_date, end_date, goal")
+    .eq("id", sprintId)
+    .eq("project_id", projectId)
+    .single();
+
+  if (sprintError || !sprint) notFound();
+
+  const isActiveSprint = sprint.status === "active";
+  const pageTitle = isActiveSprint
+    ? `Active Sprint Board — ${project.name}`
+    : `${sprint.name} — ${project.name}`;
+
+  return (
+    <main className="container mx-auto py-8 px-4">
+      <h1 className="text-2xl font-bold mb-6">
+        {pageTitle}
+      </h1>
+      <KanbanBoard
+        projectId={project.id}
+        projectName={project.name}
+        sprintId={sprint.id}
+        sprintName={sprint.name}
+        sprintStartDate={sprint.start_date ?? undefined}
+        sprintEndDate={sprint.end_date ?? undefined}
+        sprintStatus={sprint.status}
+        sprintGoal={sprint.goal ?? undefined}
+        isActiveSprint={sprint.status === "active"}
+      />
+    </main>
+  );
+}

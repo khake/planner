@@ -1,0 +1,139 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+import type { Project } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+export function ProjectList() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const fetchProjects = useCallback(async () => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("projects")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (!error) setProjects(data ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim()) return;
+    setCreating(true);
+    const supabase = createClient();
+    const { error } = await supabase.from("projects").insert({
+      name: newName.trim(),
+      description: newDescription.trim() || null,
+    });
+    setCreating(false);
+    if (error) {
+      console.error(error);
+      return;
+    }
+    setShowCreateModal(false);
+    setNewName("");
+    setNewDescription("");
+    await fetchProjects();
+  };
+
+  if (loading) {
+    return <p className="text-muted-foreground">กำลังโหลด...</p>;
+  }
+
+  const createModal = showCreateModal && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-lg">
+        <h3 className="text-lg font-semibold mb-4">สร้างโปรเจกต์ใหม่</h3>
+        <form onSubmit={handleCreateProject} className="space-y-4">
+          <div>
+            <Label htmlFor="project-name">ชื่อโปรเจกต์</Label>
+            <Input
+              id="project-name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="เช่น My Project"
+              className="mt-1"
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="project-desc">คำอธิบาย (ไม่บังคับ)</Label>
+            <Input
+              id="project-desc"
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              placeholder="อธิบายโปรเจกต์สั้นๆ"
+              className="mt-1"
+            />
+          </div>
+          <div className="flex gap-2 justify-end pt-2">
+            <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>
+              ยกเลิก
+            </Button>
+            <Button type="submit" disabled={creating}>
+              {creating ? "กำลังสร้าง..." : "สร้างโปรเจกต์"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+
+  if (projects.length === 0) {
+    return (
+      <div className="space-y-4">
+        <p className="text-muted-foreground">
+          ยังไม่มีโปรเจกต์ — สร้างโปรเจกต์แรกเพื่อเริ่มต้น
+        </p>
+        <Button onClick={() => setShowCreateModal(true)}>สร้างโปรเจกต์</Button>
+        {createModal}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={() => setShowCreateModal(true)} variant="outline" size="sm">
+          สร้างโปรเจกต์
+        </Button>
+      </div>
+      {createModal}
+      <ul className={cn("space-y-2")}>
+      {projects.map((p) => (
+        <li
+          key={p.id}
+          className="rounded-lg border bg-card p-4 text-card-foreground shadow-sm"
+        >
+          <h3 className="font-semibold">{p.name}</h3>
+          {p.description && (
+            <p className="text-sm text-muted-foreground mt-1">{p.description}</p>
+          )}
+          <Link
+            href={`/projects/${p.id}`}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-2 inline-block")}
+          >
+            ดูโปรเจกต์
+          </Link>
+        </li>
+      ))}
+      </ul>
+    </div>
+  );
+}
