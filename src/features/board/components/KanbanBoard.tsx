@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -255,14 +254,6 @@ export function KanbanBoard({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-          <div className="flex items-center gap-3">
-            <Link href={`/projects/${projectId}`}>
-              <Button variant="outline">← โปรเจกต์</Button>
-            </Link>
-            <Link href={`/projects/${projectId}/backlog`}>
-              <Button variant="outline">Backlog</Button>
-            </Link>
-          </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="font-semibold">{sprintName}</span>
             {durationStr && (

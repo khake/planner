@@ -216,12 +216,16 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link href={`/projects/${projectId}`}>
+            <Button variant="outline">← โปรเจกต์</Button>
+          </Link>
+        </div>
         <Button onClick={() => setShowCreateSprint(true)}>Create Sprint</Button>
-        <Link href={`/projects/${projectId}`}>
-          <Button variant="outline">← กลับไปโปรเจกต์</Button>
-        </Link>
       </div>
+
+      <h1 className="text-2xl font-bold">Backlog — {projectName}</h1>
 
       <CreateSprintModal
         open={showCreateSprint}

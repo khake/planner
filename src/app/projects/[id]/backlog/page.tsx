@@ -23,7 +23,6 @@ export default async function BacklogPage({
 
   return (
     <main className="container mx-auto py-8 px-4">
-      <h1 className="text-2xl font-bold mb-6">Backlog — {project.name}</h1>
       <BacklogBoard
         projectId={project.id}
         projectName={project.name}
