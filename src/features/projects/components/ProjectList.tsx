@@ -59,10 +59,10 @@ export function ProjectList() {
   const createModal = showCreateModal && (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-full max-w-sm rounded-lg border bg-background p-6 shadow-lg">
-        <h3 className="text-lg font-semibold mb-4">สร้างโปรเจกต์ใหม่</h3>
+        <h3 className="text-lg font-semibold mb-4">สร้าง Squad ใหม่</h3>
         <form onSubmit={handleCreateProject} className="space-y-4">
           <div>
-            <Label htmlFor="project-name">ชื่อโปรเจกต์</Label>
+            <Label htmlFor="project-name">ชื่อ Squad</Label>
             <Input
               id="project-name"
               value={newName}
@@ -78,7 +78,7 @@ export function ProjectList() {
               id="project-desc"
               value={newDescription}
               onChange={(e) => setNewDescription(e.target.value)}
-              placeholder="อธิบายโปรเจกต์สั้นๆ"
+              placeholder="อธิบาย Squad สั้นๆ"
               className="mt-1"
             />
           </div>
@@ -87,7 +87,7 @@ export function ProjectList() {
               ยกเลิก
             </Button>
             <Button type="submit" disabled={creating}>
-              {creating ? "กำลังสร้าง..." : "สร้างโปรเจกต์"}
+              {creating ? "กำลังสร้าง..." : "สร้าง Squad"}
             </Button>
           </div>
         </form>
@@ -99,9 +99,9 @@ export function ProjectList() {
     return (
       <div className="space-y-4">
         <p className="text-muted-foreground">
-          ยังไม่มีโปรเจกต์ — สร้างโปรเจกต์แรกเพื่อเริ่มต้น
+          ยังไม่มี Squad — สร้าง Squad แรกเพื่อเริ่มต้น
         </p>
-        <Button onClick={() => setShowCreateModal(true)}>สร้างโปรเจกต์</Button>
+        <Button onClick={() => setShowCreateModal(true)}>สร้าง Squad</Button>
         {createModal}
       </div>
     );
@@ -111,7 +111,7 @@ export function ProjectList() {
     <div className="space-y-4">
       <div className="flex justify-end">
         <Button onClick={() => setShowCreateModal(true)} variant="outline" size="sm">
-          สร้างโปรเจกต์
+          สร้าง Squad
         </Button>
       </div>
       {createModal}
@@ -129,7 +129,7 @@ export function ProjectList() {
             href={`/projects/${p.id}`}
             className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-2 inline-block")}
           >
-            ดูโปรเจกต์
+            ดู Squad
           </Link>
         </li>
       ))}

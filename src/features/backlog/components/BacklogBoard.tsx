@@ -149,7 +149,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
   }, [fetchData, showToast]);
 
   const handleStartSprint = async (sprintId: string) => {
-    // ปิดสปรินต์ที่กำลัง active อยู่ในโปรเจกต์นี้ก่อน (ให้เหลือเพียง 1 active ต่อโปรเจกต์)
+    // ปิดสปรินต์ที่กำลัง active อยู่ใน Squad นี้ก่อน (ให้เหลือเพียง 1 active ต่อ Squad)
     await supabase
       .from("sprints")
       .update({ status: "completed", actual_end_date: new Date().toISOString() })
@@ -219,7 +219,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link href={`/projects/${projectId}`}>
-            <Button variant="outline">← โปรเจกต์</Button>
+            <Button variant="outline">← Squads</Button>
           </Link>
         </div>
         <Button onClick={() => setShowCreateSprint(true)}>Create Sprint</Button>

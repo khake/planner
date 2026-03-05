@@ -33,7 +33,7 @@ export default async function BoardPage({
     <main className="container mx-auto py-8 px-4">
       <div className="flex items-center gap-4 mb-6">
         <Link href="/projects">
-          <Button variant="outline">← โปรเจกต์</Button>
+          <Button variant="outline">← Squads</Button>
         </Link>
         <Link href={`/projects/${projectId}/backlog`}>
           <Button variant="outline">Backlog</Button>
@@ -49,7 +49,7 @@ export default async function BoardPage({
       {!activeSprint ? (
         <div className="rounded-lg border bg-muted/30 p-6 text-center">
           <p className="text-muted-foreground mb-4">
-            ไม่มี Active Sprint ในโปรเจกต์นี้
+            ไม่มี Active Sprint ใน Squad นี้
           </p>
           <p className="text-sm text-muted-foreground mb-4">
             ไปที่ Backlog สร้าง Sprint แล้วกด Start Sprint

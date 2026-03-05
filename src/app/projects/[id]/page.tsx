@@ -37,7 +37,7 @@ export default async function ProjectDetailPage({
     <main className="container mx-auto py-8 px-4">
       <div className="flex items-center gap-4 mb-6">
         <Link href="/projects">
-          <Button variant="outline">← โปรเจกต์</Button>
+          <Button variant="outline">← Squads</Button>
         </Link>
         <Link href={`/projects/${id}/backlog`}>
           <Button variant="outline">Backlog</Button>

@@ -12,7 +12,7 @@ export default function ProjectsPage() {
           </Link>
         </div>
       </div>
-      <h1 className="text-2xl font-bold mb-4">โปรเจกต์</h1>
+      <h1 className="text-2xl font-bold mb-4">Squads</h1>
       <ProjectList />
     </main>
   );
