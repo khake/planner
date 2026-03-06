@@ -29,11 +29,13 @@ export function KanbanLane({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col rounded-lg border bg-muted/30 min-h-[400px] p-3 transition-colors",
-        isOver && "ring-2 ring-primary/50 bg-primary/5"
+        "flex min-h-[420px] flex-col rounded-xl border border-[#E8E8E8] bg-white p-4 transition-colors",
+        isOver && "bg-primary/5 ring-2 ring-primary/40"
       )}
     >
-      <h3 className="font-semibold mb-2 text-sm text-foreground">{title}</h3>
+      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[#666666]">
+        {title}
+      </h3>
       <div className="space-y-2 flex-1">
         {tasks.map((task) => (
           <TaskCard

@@ -8,15 +8,21 @@ export async function CurrentUserTag() {
   if (!email) return null;
 
   const short = email.split("@")[0] || email;
+  const initial = short.charAt(0).toUpperCase();
 
   return (
-    <span
-      className="text-xs text-muted-foreground max-w-[140px] truncate"
+    <div
+      className="flex items-center gap-2 rounded-full border border-[#E8E8E8] bg-white px-2.5 py-1.5"
       title={email}
       aria-label={`ล็อกอินเป็น ${email}`}
     >
-      {short}
-    </span>
+      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#FFF1ED] text-xs font-semibold text-[#EE4D2D]">
+        {initial}
+      </span>
+      <span className="max-w-[140px] truncate text-sm font-medium text-[#222222]">
+        {short}
+      </span>
+    </div>
   );
 }
 

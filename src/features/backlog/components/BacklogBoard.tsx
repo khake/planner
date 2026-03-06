@@ -20,7 +20,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { CreateSprintModal } from "@/features/sprints/CreateSprintModal";
 import { TaskModal } from "@/features/board/components";
 import { cn } from "@/lib/utils";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
 import { DraggableTask } from "./DraggableTask";
 import { DroppableSprint } from "./DroppableSprint";
 
@@ -305,28 +305,28 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Link href={`/projects/${projectId}`}>
-            <Button variant="outline">← Squads</Button>
-          </Link>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={() => setShowCreateSprint(true)}>Create Sprint</Button>
-          <Link href="/profile">
-            <Button variant="outline" size="sm">
-              โปรไฟล์
+      <section className="rounded-xl border border-[#E8E8E8] bg-white px-6 py-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-3xl">
+            <p className="text-sm font-medium text-[#EE4D2D]">Backlog Planning</p>
+            <h1 className="mt-1 text-3xl font-semibold text-[#222222]">
+              Backlog - {projectName}
+            </h1>
+            <p className="mt-2 text-sm text-[#666666]">
+              วางแผนงานใน backlog, จัดเข้ากับ sprint และสร้าง task ใหม่แบบรวดเร็ว
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/projects/${projectId}`}>
+              <Button variant="brandOutline">ภาพรวม Squad</Button>
+            </Link>
+            <Button onClick={() => setShowCreateSprint(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Sprint
             </Button>
-          </Link>
-          <Link href="/logout">
-            <Button variant="ghost" size="sm">
-              Logout
-            </Button>
-          </Link>
+          </div>
         </div>
-      </div>
-
-      <h1 className="text-2xl font-bold">Backlog — {projectName}</h1>
+      </section>
 
       <CreateSprintModal
         open={showCreateSprint}
@@ -341,11 +341,11 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {/* Backlog column (droppable) */}
-          <div className="rounded-lg border bg-muted/30 p-4 min-h-[320px] flex flex-col">
-            <h3 className="font-semibold mb-1 text-foreground">Backlog</h3>
-            <p className="text-xs text-muted-foreground mb-2">
+          <div className="flex min-h-[360px] flex-col rounded-xl border border-[#E8E8E8] bg-white p-4">
+            <h3 className="mb-1 text-base font-semibold text-[#222222]">Backlog</h3>
+            <p className="mb-3 text-xs text-[#666666]">
               ลากงานไป Sprint หรือลากกลับมาที่นี่
             </p>
             <DroppableSprint id="backlog" isBacklog>
@@ -391,10 +391,10 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
             <div
               key={sprint.id}
               className={cn(
-                "rounded-lg border p-4 min-h-[320px] flex flex-col",
+                "flex min-h-[360px] flex-col rounded-xl border p-4",
                 sprint.status === "active"
-                  ? "bg-primary/5 border-primary/30"
-                  : "bg-card"
+                  ? "border-primary/30 bg-[#FFF8F6]"
+                  : "border-[#E8E8E8] bg-white"
               )}
             >
               <div className="flex items-start justify-between gap-2 mb-1">
@@ -406,8 +406,10 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
                     sprint.status === "active" && "text-primary font-semibold"
                   )}
                 >
-                  <h3 className="font-semibold truncate">{sprint.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <h3 className="truncate text-base font-semibold text-[#222222]">
+                    {sprint.name}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-[#666666]">
                     {sprint.start_date && sprint.end_date
                       ? `${sprint.start_date} – ${sprint.end_date}`
                       : "—"}
@@ -438,7 +440,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
                       "inline-flex items-center gap-1 text-xs rounded-md px-2 py-1 transition-colors",
                       sprint.status === "active"
                         ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                        : "text-[#666666] hover:bg-muted/60 hover:text-[#222222]"
                     )}
                     title="ไปที่ Board"
                   >

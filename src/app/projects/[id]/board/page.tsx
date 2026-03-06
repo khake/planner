@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { DynamicKanbanBoard } from "@/features/board/components";
 import { Button } from "@/components/ui/button";
-import { CurrentUserTag } from "@/components/current-user-tag";
+import { AppShell } from "@/components/app-shell";
+import { AppUserActions } from "@/components/app-user-actions";
 
 export default async function BoardPage({
   params,
@@ -36,62 +37,62 @@ export default async function BoardPage({
     .maybeSingle();
 
   return (
-    <main className="container mx-auto py-8 px-4">
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-4">
-          <Link href="/projects">
-            <Button variant="outline">← Squads</Button>
-          </Link>
-          <Link href={`/projects/${projectId}/backlog`}>
-            <Button variant="outline">Backlog</Button>
-          </Link>
-          <Link href={`/projects/${projectId}/board`}>
-            <Button>Active Sprint</Button>
-          </Link>
-        </div>
-        <div className="flex items-center gap-2">
-          <CurrentUserTag />
-          <Link href="/profile">
-            <Button variant="outline" size="sm">
-              โปรไฟล์
-            </Button>
-          </Link>
-          <Link href="/logout">
-            <Button variant="ghost" size="sm">
-              Logout
-            </Button>
-          </Link>
-        </div>
-      </div>
-      <h1 className="text-2xl font-bold mb-4">
-        Active Sprint Board — {project.name}
-      </h1>
+    <AppShell
+      activeNav="projects"
+      breadcrumbs={[
+        { label: "Squads", href: "/projects" },
+        { label: project.name, href: `/projects/${project.id}` },
+        { label: "Active Sprint" },
+      ]}
+      topbarRight={<AppUserActions />}
+    >
+      <div className="space-y-6">
+        <section className="rounded-xl border border-[#E8E8E8] bg-white px-6 py-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-[#EE4D2D]">Sprint Board</p>
+              <h1 className="mt-1 text-3xl font-semibold text-[#222222]">
+                Active Sprint Board
+              </h1>
+              <p className="mt-2 text-sm text-[#666666]">{project.name}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href={`/projects/${projectId}/backlog`}>
+                <Button variant="brandOutline">Backlog</Button>
+              </Link>
+              <Link href={`/projects/${projectId}/board`}>
+                <Button>Active Sprint</Button>
+              </Link>
+            </div>
+          </div>
+        </section>
 
-      {!activeSprint ? (
-        <div className="rounded-lg border bg-muted/30 p-6 text-center">
-          <p className="text-muted-foreground mb-4">
-            ไม่มี Active Sprint ใน Squad นี้
-          </p>
-          <p className="text-sm text-muted-foreground mb-4">
-            ไปที่ Backlog สร้าง Sprint แล้วกด Start Sprint
-          </p>
-          <Link href={`/projects/${projectId}/backlog`}>
-            <Button>ไปที่ Backlog</Button>
-          </Link>
-        </div>
-      ) : (
-        <DynamicKanbanBoard
-          projectId={project.id}
-          projectName={project.name}
-          sprintId={activeSprint.id}
-          sprintName={activeSprint.name}
-          sprintStartDate={activeSprint.start_date ?? undefined}
-          sprintEndDate={activeSprint.end_date ?? undefined}
-          sprintStatus={activeSprint.status}
-          sprintGoal={activeSprint.goal ?? undefined}
-          isActiveSprint={activeSprint.status === "active"}
-        />
-      )}
-    </main>
+        {!activeSprint ? (
+          <div className="rounded-xl border border-[#E8E8E8] bg-white p-8 text-center">
+            <p className="mb-3 text-base font-medium text-[#222222]">
+              ไม่มี Active Sprint ใน Squad นี้
+            </p>
+            <p className="mb-5 text-sm text-[#666666]">
+              ไปที่ Backlog สร้าง Sprint แล้วกด Start Sprint
+            </p>
+            <Link href={`/projects/${projectId}/backlog`}>
+              <Button>ไปที่ Backlog</Button>
+            </Link>
+          </div>
+        ) : (
+          <DynamicKanbanBoard
+            projectId={project.id}
+            projectName={project.name}
+            sprintId={activeSprint.id}
+            sprintName={activeSprint.name}
+            sprintStartDate={activeSprint.start_date ?? undefined}
+            sprintEndDate={activeSprint.end_date ?? undefined}
+            sprintStatus={activeSprint.status}
+            sprintGoal={activeSprint.goal ?? undefined}
+            isActiveSprint={activeSprint.status === "active"}
+          />
+        )}
+      </div>
+    </AppShell>
   );
 }

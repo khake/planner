@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Modal } from "@/components/ui/modal";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Plus } from "lucide-react";
 
 export function ProjectList() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -113,27 +114,38 @@ export function ProjectList() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button onClick={() => setShowCreateModal(true)} variant="outline" size="sm">
+        <Button onClick={() => setShowCreateModal(true)} size="sm" className="gap-2">
+          <Plus className="h-4 w-4" />
           สร้าง Squad
         </Button>
       </div>
       {createModal}
-      <ul className={cn("space-y-2")}>
+      <ul className={cn("grid grid-cols-1 gap-4 xl:grid-cols-3 md:grid-cols-2")}>
       {projects.map((p) => (
         <li
           key={p.id}
-          className="card p-4"
+          className="card flex min-h-[190px] flex-col justify-between p-5"
         >
-          <h3 className="font-semibold text-[#222222]">{p.name}</h3>
-          {p.description && (
-            <p className="text-sm text-muted-foreground mt-1">{p.description}</p>
-          )}
-          <Link
-            href={`/projects/${p.id}`}
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-2 inline-block")}
-          >
-            ดู Squad
-          </Link>
+          <div>
+            <h3 className="text-lg font-semibold text-[#222222]">{p.name}</h3>
+            <p className="mt-3 line-clamp-3 text-sm leading-6 text-[#666666]">
+              {p.description ?? "ยังไม่มีคำอธิบายของ Squad นี้"}
+            </p>
+          </div>
+          <div className="mt-6 flex items-end justify-between gap-3">
+            <span className="rounded-full bg-[#FAFAFA] px-3 py-1 text-xs font-medium text-[#666666]">
+              Squad Workspace
+            </span>
+            <Link
+              href={`/projects/${p.id}`}
+              className={cn(
+                buttonVariants({ variant: "brandOutline", size: "sm" }),
+                "inline-flex"
+              )}
+            >
+              ดู Squad
+            </Link>
+          </div>
         </li>
       ))}
       </ul>

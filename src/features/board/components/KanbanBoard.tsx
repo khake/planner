@@ -287,7 +287,7 @@ export function KanbanBoard({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#E8E8E8] bg-white px-6 py-5">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="font-semibold">{sprintName}</span>
