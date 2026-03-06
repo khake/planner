@@ -31,8 +31,6 @@ function LoginForm() {
       setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
       return;
     }
-    // ตั้งค่า cookie ฝั่ง client เพื่อใช้เช็ก auth เพิ่มเติมใน middleware
-    document.cookie = "planner_auth=1; path=/; max-age=604800";
     router.push(from);
   };
 
