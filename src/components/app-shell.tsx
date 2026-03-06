@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Building2, FolderKanban, Settings2 } from "lucide-react";
+import { Building2, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type SidebarKey = "squads" | "projects" | "settings";
+type SidebarKey = "squads" | "settings";
 
 type BreadcrumbItem = {
   label: string;
@@ -30,13 +30,6 @@ const navItems: {
     href: "/projects",
     icon: Building2,
     helper: "ดู Squad และสถานะงาน",
-  },
-  {
-    key: "projects",
-    label: "โปรเจกต์ทั้งหมด",
-    href: "/projects",
-    icon: FolderKanban,
-    helper: "Backlog, Sprint และ Board",
   },
   {
     key: "settings",
