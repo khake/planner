@@ -27,17 +27,19 @@ export function ProfilePageClient() {
   useEffect(() => {
     const load = async () => {
       const supabase = createClient();
-      const [{ data: auth }, { data: profiles }] = await Promise.all([
-        supabase.auth.getUser(),
-        supabase.from("profiles").select("*").limit(1),
-      ]);
+      const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) {
         router.push("/login");
         return;
       }
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", auth.user.id)
+        .maybeSingle();
       setEmail(auth.user.email ?? "");
-      if (profiles && profiles.length > 0) {
-        const p = profiles[0] as Profile;
+      if (profileData) {
+        const p = profileData as Profile;
         setProfile(p);
         setName(p.name ?? "");
       }

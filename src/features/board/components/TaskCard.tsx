@@ -1,10 +1,12 @@
 "use client";
 
-import { useDraggable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import { useSortable } from "@dnd-kit/sortable";
 import Image from "next/image";
 import type { TaskWithAssignee } from "@/types";
 import { cn } from "@/lib/utils";
 import { Paperclip } from "lucide-react";
+import { getTagClassName, getTaskTypeMeta } from "@/lib/task-ui";
 
 type TaskCardProps = {
   task: TaskWithAssignee;
@@ -21,12 +23,14 @@ export function TaskCard({
   attachmentCount = 0,
   coverImageUrl = null,
 }: TaskCardProps) {
-  const { attributes, listeners, setNodeRef } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: task.id,
   });
 
   const assigneeName = (task as TaskWithAssignee).assignee?.name ?? null;
   const hasCover = Boolean(coverImageUrl);
+  const typeMeta = getTaskTypeMeta(task.type);
+  const TypeIcon = typeMeta.icon;
 
   return (
     <div
@@ -35,6 +39,10 @@ export function TaskCard({
       {...attributes}
       role="button"
       tabIndex={0}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
       onClick={(e) => {
         e.stopPropagation();
         onClick?.();
@@ -62,7 +70,46 @@ export function TaskCard({
         </div>
       )}
       <div className={cn("p-3", hasCover && "pt-2")}>
+        <div className="mb-2 flex items-center gap-2">
+          <span
+            className={cn(
+              "inline-flex h-7 w-7 items-center justify-center rounded-md",
+              typeMeta.indicatorClassName
+            )}
+            title={typeMeta.label}
+          >
+            <TypeIcon className="h-4 w-4" />
+          </span>
+          <span
+            className={cn(
+              "inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold",
+              typeMeta.badgeClassName
+            )}
+          >
+            {typeMeta.label}
+          </span>
+        </div>
         <p className="font-medium text-sm">{task.title}</p>
+        {task.tags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {task.tags.slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className={cn(
+                  "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                  getTagClassName(tag)
+                )}
+              >
+                {tag}
+              </span>
+            ))}
+            {task.tags.length > 3 && (
+              <span className="inline-flex rounded-full border border-[#E8E8E8] bg-[#FAFAFA] px-2 py-0.5 text-[11px] font-medium text-[#666666]">
+                +{task.tags.length - 3}
+              </span>
+            )}
+          </div>
+        )}
         <div className="flex items-center justify-between mt-2 gap-2 flex-wrap">
           <span className="text-xs text-muted-foreground truncate">
             {assigneeName ?? "—"}

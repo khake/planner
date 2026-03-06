@@ -4,20 +4,56 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
-import type { TaskStatus, TaskPriority } from "@/types";
-import type { TaskWithAssignee, Attachment } from "@/types";
+import type { TaskStatus, TaskPriority, TaskType, Task, TaskWithAssignee, Attachment } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { RichTextViewer } from "@/components/rich-text-viewer";
 import { isRichTextEmpty, sanitizeRichTextHtml } from "@/lib/rich-text";
+import { getTagClassName, getTaskTypeMeta, normalizeTaskTag } from "@/lib/task-ui";
 import { cn } from "@/lib/utils";
-import { Paperclip, Download, Trash2, Image as ImageIcon, FileText, File, X, Maximize2, MessageCircle, Send } from "lucide-react";
+import { Paperclip, Download, Trash2, Image as ImageIcon, FileText, File, X, Maximize2, MessageCircle, Send, Plus, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TaskCommentWithUser } from "@/types";
 
 const BUCKET = "task-artifacts";
+const POSITION_GAP = 1024;
+
+async function getNextBoardPositionForLane(
+  supabase: ReturnType<typeof createClient>,
+  sprintId: string,
+  status: Exclude<TaskStatus, "backlog">,
+  excludeTaskId?: string
+) {
+  let query = supabase
+    .from("tasks")
+    .select("board_position")
+    .eq("sprint_id", sprintId)
+    .eq("status", status)
+    .order("board_position", { ascending: false })
+    .limit(1);
+
+  if (excludeTaskId) {
+    query = query.neq("id", excludeTaskId);
+  }
+
+  const { data } = await query;
+  const maxBoardPosition = data?.[0]?.board_position ?? 0;
+  return maxBoardPosition + POSITION_GAP;
+}
+
+function attachCommentAuthors(
+  comments: TaskCommentWithUser[],
+  profiles: { id: string; name: string; avatar_url: string | null }[]
+) {
+  return comments.map((comment) => ({
+    ...comment,
+    user: comment.author_id
+      ? profiles.find((profile) => profile.id === comment.author_id) ?? null
+      : null,
+  }));
+}
 
 function getAttachmentIcon(att: { file_type: string | null }): LucideIcon {
   if (att.file_type?.startsWith("image/")) return ImageIcon;
@@ -99,8 +135,9 @@ function ImagePreviewModal({
   );
 }
 
-const STATUS_OPTIONS: TaskStatus[] = ["todo", "in_progress", "review", "done"];
+const STATUS_OPTIONS: TaskStatus[] = ["backlog", "todo", "in_progress", "review", "done"];
 const PRIORITY_OPTIONS: TaskPriority[] = ["low", "medium", "high", "urgent"];
+const TYPE_OPTIONS: TaskType[] = ["story", "task", "bug", "subtask"];
 
 type TaskModalProps = {
   task: TaskWithAssignee;
@@ -115,15 +152,24 @@ type TaskModalProps = {
 export function TaskModal({
   task,
   users,
+  projectId,
   onClose,
   onSaved,
   onDeleted,
 }: TaskModalProps) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
+  const [issueType, setIssueType] = useState<TaskType>(task.type);
+  const [parentId, setParentId] = useState(task.parent_id ?? "");
+  const [tags, setTags] = useState<string[]>(task.tags ?? []);
+  const [tagInput, setTagInput] = useState("");
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
   const [assigneeId, setAssigneeId] = useState<string>(task.assignee_id ?? "");
+  const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
+  const [subtasks, setSubtasks] = useState<Task[]>([]);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [creatingSubtask, setCreatingSubtask] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -132,7 +178,7 @@ export function TaskModal({
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [comments, setComments] = useState<TaskCommentWithUser[]>([]);
   const [newComment, setNewComment] = useState("");
-  const [commentAuthorId, setCommentAuthorId] = useState<string>(task.assignee_id ?? users[0]?.id ?? "");
+  const [commentAuthorId, setCommentAuthorId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>("ผู้ใช้");
   const [loadingComments, setLoadingComments] = useState(true);
   const [sendingComment, setSendingComment] = useState(false);
@@ -153,16 +199,46 @@ export function TaskModal({
     loadAttachments();
   }, [loadAttachments]);
 
+  const loadAvailableTasks = useCallback(async () => {
+    const { data } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("project_id", projectId)
+      .neq("id", task.id)
+      .order("position", { ascending: true });
+    setAvailableTasks((data ?? []) as Task[]);
+  }, [projectId, supabase, task.id]);
+
+  const loadSubtasks = useCallback(async () => {
+    const { data } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("parent_id", task.id)
+      .order("position", { ascending: true });
+    setSubtasks((data ?? []) as Task[]);
+  }, [supabase, task.id]);
+
+  useEffect(() => {
+    loadAvailableTasks();
+    loadSubtasks();
+  }, [loadAvailableTasks, loadSubtasks]);
+
   useEffect(() => {
     const setCurrentUserFromAuth = async () => {
       const { data } = await supabase.auth.getUser();
-      const uid = data.user?.id;
-      if (!uid) return;
-      const match = users.find((u) => u.id === uid);
-      if (match) {
-        setCommentAuthorId(uid);
-        setCurrentUserName(match.name);
-      }
+      const authUser = data.user;
+      if (!authUser) return;
+
+      const metadataName =
+        typeof authUser.user_metadata?.name === "string"
+          ? authUser.user_metadata.name.trim()
+          : "";
+      const emailName = authUser.email?.split("@")[0]?.trim() ?? "";
+      const displayName = metadataName || emailName || "ผู้ใช้";
+      const match = users.find((u) => u.id === authUser.id);
+
+      setCommentAuthorId(match?.id ?? null);
+      setCurrentUserName(match?.name ?? displayName);
     };
     setCurrentUserFromAuth();
   }, [supabase, users]);
@@ -171,12 +247,14 @@ export function TaskModal({
     setLoadingComments(true);
     const { data } = await supabase
       .from("task_comments")
-      .select("*, user:users!author_id(id, name, avatar_url)")
+      .select("*")
       .eq("task_id", task.id)
       .order("created_at", { ascending: false });
-    setComments((data ?? []) as TaskCommentWithUser[]);
+    setComments(
+      attachCommentAuthors((data ?? []) as TaskCommentWithUser[], users)
+    );
     setLoadingComments(false);
-  }, [task.id, supabase]);
+  }, [task.id, supabase, users]);
 
   useEffect(() => {
     loadComments();
@@ -187,14 +265,14 @@ export function TaskModal({
     const content = sanitizeRichTextHtml(newComment);
     if (isRichTextEmpty(content)) return;
     setSendingComment(true);
-    const author = users.find((u) => u.id === commentAuthorId);
-    const authorName = author?.name ?? currentUserName;
+    const author = commentAuthorId ? users.find((u) => u.id === commentAuthorId) : null;
+    const authorName = currentUserName || author?.name || "ผู้ใช้";
     const tempId = `temp-${Date.now()}`;
     const optimisticComment: TaskCommentWithUser = {
       id: tempId,
       task_id: task.id,
       author_name: authorName,
-      author_id: commentAuthorId || null,
+      author_id: commentAuthorId,
       content,
       created_at: new Date().toISOString(),
       user: author ? { id: author.id, name: author.name, avatar_url: author.avatar_url } : null,
@@ -204,7 +282,7 @@ export function TaskModal({
     const { error } = await supabase.from("task_comments").insert({
       task_id: task.id,
       author_name: authorName,
-      author_id: commentAuthorId || null,
+      author_id: commentAuthorId,
       content,
     });
     if (error) {
@@ -214,6 +292,82 @@ export function TaskModal({
     }
     await loadComments();
     setSendingComment(false);
+  };
+
+  const handleAddTag = (rawValue: string) => {
+    const normalizedTag = normalizeTaskTag(rawValue);
+    if (!normalizedTag) return;
+    setTags((current) =>
+      current.includes(normalizedTag) ? current : [...current, normalizedTag]
+    );
+    setTagInput("");
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    setTags((current) => current.filter((item) => item !== tag));
+  };
+
+  const handleCreateSubtask = async () => {
+    const title = newSubtaskTitle.trim();
+    if (!title) return;
+    setCreatingSubtask(true);
+    const position =
+      subtasks.length > 0
+        ? Math.max(...subtasks.map((subtask) => subtask.position ?? 0)) + 1024
+        : 1024;
+    const boardPosition =
+      task.sprint_id
+        ? await getNextBoardPositionForLane(supabase, task.sprint_id, "todo")
+        : null;
+    const payload = {
+      project_id: projectId,
+      sprint_id: task.sprint_id,
+      type: "subtask" as const,
+      parent_id: task.id,
+      title,
+      description: null,
+      tags: [] as string[],
+      position,
+      board_position: boardPosition,
+      status: task.sprint_id ? "todo" : "backlog",
+      priority: "medium" as const,
+      assignee_id: null,
+    };
+    const { data, error } = await supabase.from("tasks").insert(payload).select("*").single();
+    setCreatingSubtask(false);
+    if (error) return;
+    setNewSubtaskTitle("");
+    setSubtasks((current) => [...current, data as Task].sort((a, b) => a.position - b.position));
+    setAvailableTasks((current) => [...current, data as Task].sort((a, b) => a.position - b.position));
+  };
+
+  const handleToggleSubtask = async (subtask: Task, checked: boolean) => {
+    const nextStatus: TaskStatus = checked ? "done" : task.sprint_id ? "todo" : "backlog";
+    const nextBoardPosition =
+      task.sprint_id && nextStatus !== "backlog"
+        ? await getNextBoardPositionForLane(
+            supabase,
+            task.sprint_id,
+            nextStatus as Exclude<TaskStatus, "backlog">,
+            subtask.id
+          )
+        : null;
+    setSubtasks((current) =>
+      current.map((item) =>
+        item.id === subtask.id
+          ? { ...item, status: nextStatus, board_position: nextBoardPosition }
+          : item
+      )
+    );
+    const { error } = await supabase
+      .from("tasks")
+      .update({ status: nextStatus, board_position: nextBoardPosition })
+      .eq("id", subtask.id);
+    if (error) {
+      setSubtasks((current) =>
+        current.map((item) => (item.id === subtask.id ? subtask : item))
+      );
+    }
   };
 
   const handleUploadFiles = async (files: FileList | File[]) => {
@@ -270,12 +424,27 @@ export function TaskModal({
     if (!title.trim()) return;
     setSaving(true);
     const safeDescription = sanitizeRichTextHtml(description);
+    const nextBoardPosition =
+      task.sprint_id && status !== "backlog" && status !== task.status
+        ? await getNextBoardPositionForLane(
+            supabase,
+            task.sprint_id,
+            status as Exclude<TaskStatus, "backlog">,
+            task.id
+          )
+        : status === "backlog"
+          ? null
+          : task.board_position;
     const { error } = await supabase
       .from("tasks")
       .update({
+        type: issueType,
+        parent_id: parentId || null,
         title: title.trim(),
         description: isRichTextEmpty(safeDescription) ? null : safeDescription,
+        tags,
         status,
+        board_position: nextBoardPosition,
         priority,
         assignee_id: assigneeId || null,
       })
@@ -343,6 +512,86 @@ export function TaskModal({
                     disabled={deleting}
                     submitting={saving}
                   />
+                </div>
+                <div className="rounded-lg border bg-background p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-[#222222]">Subtasks</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        แตกงานย่อยของ task นี้และติ๊กว่าเสร็จแล้วได้ทันที
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newSubtaskTitle}
+                      onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handleCreateSubtask();
+                        }
+                      }}
+                      placeholder="เพิ่ม subtask..."
+                      disabled={saving || deleting || creatingSubtask}
+                    />
+                    <Button
+                      type="button"
+                      variant="brandOutline"
+                      className="gap-2"
+                      disabled={creatingSubtask || !newSubtaskTitle.trim()}
+                      onClick={() => void handleCreateSubtask()}
+                    >
+                      <Plus className="h-4 w-4" />
+                      เพิ่ม
+                    </Button>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {subtasks.length === 0 ? (
+                      <p className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">
+                        ยังไม่มี subtask ใต้ task นี้
+                      </p>
+                    ) : (
+                      subtasks.map((subtask) => {
+                        const subtaskMeta = getTaskTypeMeta(subtask.type);
+                        const SubtaskIcon = subtaskMeta.icon;
+                        return (
+                          <label
+                            key={subtask.id}
+                            className="flex items-start gap-3 rounded-md border px-3 py-3 transition-colors hover:bg-muted/30"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={subtask.status === "done"}
+                              onChange={(e) => void handleToggleSubtask(subtask, e.target.checked)}
+                              className="mt-1 h-4 w-4 rounded border-input"
+                            />
+                            <span
+                              className={cn(
+                                "mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-md",
+                                subtaskMeta.indicatorClassName
+                              )}
+                            >
+                              <SubtaskIcon className="h-4 w-4" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span
+                                className={cn(
+                                  "block text-sm font-medium text-[#222222]",
+                                  subtask.status === "done" && "text-muted-foreground line-through"
+                                )}
+                              >
+                                {subtask.title}
+                              </span>
+                              <span className="mt-1 block text-xs text-muted-foreground">
+                                {subtask.status === "done" ? "เสร็จแล้ว" : "ยังไม่เสร็จ"}
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
                 <div className="rounded-lg border bg-muted/20 p-4">
                   <Label className="flex items-center gap-1.5">
@@ -462,10 +711,91 @@ export function TaskModal({
               {/* ขวา 30%: Task Metadata */}
               <div className="space-y-4 rounded-xl border bg-card p-5 shadow-sm">
                 <div className="border-b pb-3">
-                  <h3 className="text-sm font-semibold">ข้อมูลสถานะ</h3>
+                  <h3 className="text-sm font-semibold">ข้อมูล Task</h3>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    ปรับสถานะ ความสำคัญ และผู้รับผิดชอบของงาน
+                    จัดประเภท task, parent, tags และข้อมูลสถานะของงาน
                   </p>
+                </div>
+                <div>
+                  <Label htmlFor="modal-type">Issue Type</Label>
+                  <select
+                    id="modal-type"
+                    value={issueType}
+                    onChange={(e) => setIssueType(e.target.value as TaskType)}
+                    disabled={saving || deleting}
+                    className={cn(
+                      "mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    )}
+                  >
+                    {TYPE_OPTIONS.map((type) => (
+                      <option key={type} value={type}>
+                        {getTaskTypeMeta(type).label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="modal-parent">Parent Task</Label>
+                  <select
+                    id="modal-parent"
+                    value={parentId}
+                    onChange={(e) => setParentId(e.target.value)}
+                    disabled={saving || deleting}
+                    className={cn(
+                      "mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    )}
+                  >
+                    <option value="">— ไม่มี parent —</option>
+                    {availableTasks.map((parentTask) => (
+                      <option key={parentTask.id} value={parentTask.id}>
+                        {parentTask.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="modal-tags">Tags</Label>
+                  <div className="mt-1 rounded-md border border-input bg-background px-3 py-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-medium",
+                            getTagClassName(tag)
+                          )}
+                        >
+                          {tag}
+                          <button
+                            type="button"
+                            className="text-current/80 hover:text-current"
+                            onClick={() => handleRemoveTag(tag)}
+                            aria-label={`ลบแท็ก ${tag}`}
+                          >
+                            <XCircle className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                      <input
+                        id="modal-tags"
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === ",") {
+                            e.preventDefault();
+                            handleAddTag(tagInput);
+                          }
+                          if (e.key === "Backspace" && !tagInput && tags.length > 0) {
+                            handleRemoveTag(tags[tags.length - 1]);
+                          }
+                        }}
+                        onBlur={() => handleAddTag(tagInput)}
+                        placeholder="พิมพ์แท็กแล้วกด Enter"
+                        className="min-w-[140px] flex-1 border-0 bg-transparent p-0 text-sm outline-none placeholder:text-muted-foreground"
+                        disabled={saving || deleting}
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="modal-status">สถานะ</Label>
@@ -696,7 +1026,7 @@ export function TaskModal({
 
         <motion.button
           type="button"
-          className="absolute bottom-5 right-5 z-50 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#EE4D2D] text-white shadow-[0_16px_30px_rgba(238,77,45,0.38)]"
+          className="absolute bottom-[50px] right-5 z-50 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#EE4D2D] text-white shadow-[0_16px_30px_rgba(238,77,45,0.38)]"
           onClick={() => setIsActivityOpen(true)}
           whileHover={{ scale: 1.08, y: -2 }}
           whileTap={{ scale: 0.95 }}
