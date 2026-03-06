@@ -11,6 +11,18 @@ export default function ProjectsPage() {
             <Button variant="outline">← หน้าแรก</Button>
           </Link>
         </div>
+        <div className="flex items-center gap-2">
+          <Link href="/profile">
+            <Button variant="outline" size="sm">
+              โปรไฟล์
+            </Button>
+          </Link>
+          <Link href="/logout">
+            <Button variant="ghost" size="sm">
+              Logout
+            </Button>
+          </Link>
+        </div>
       </div>
       <h1 className="text-2xl font-bold mb-4">Squads</h1>
       <ProjectList />

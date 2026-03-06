@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
-import { KanbanBoard } from "@/features/board/components";
+import { DynamicKanbanBoard } from "@/features/board/components";
 import { Button } from "@/components/ui/button";
 
 export default async function SprintBoardPage({
@@ -36,21 +36,35 @@ export default async function SprintBoardPage({
 
   return (
     <main className="container mx-auto py-8 px-4">
-      <div className="flex items-center gap-4 mb-6">
-        <Link href="/projects">
-          <Button variant="outline">← Squads</Button>
-        </Link>
-        <Link href={`/projects/${projectId}/backlog`}>
-          <Button variant="outline">Backlog</Button>
-        </Link>
-        <Link href={`/projects/${projectId}/board`}>
-          <Button>Active Sprint</Button>
-        </Link>
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <Link href="/projects">
+            <Button variant="outline">← Squads</Button>
+          </Link>
+          <Link href={`/projects/${projectId}/backlog`}>
+            <Button variant="outline">Backlog</Button>
+          </Link>
+          <Link href={`/projects/${projectId}/board`}>
+            <Button>Active Sprint</Button>
+          </Link>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/profile">
+            <Button variant="outline" size="sm">
+              โปรไฟล์
+            </Button>
+          </Link>
+          <Link href="/logout">
+            <Button variant="ghost" size="sm">
+              Logout
+            </Button>
+          </Link>
+        </div>
       </div>
       <h1 className="text-2xl font-bold mb-4">
         {pageTitle}
       </h1>
-      <KanbanBoard
+      <DynamicKanbanBoard
         projectId={project.id}
         projectName={project.name}
         sprintId={sprint.id}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import type { TaskStatus, TaskPriority } from "@/types";
 import type { TaskWithAssignee, Attachment } from "@/types";
@@ -8,14 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { Paperclip, Download, Trash2, Image, FileText, File, X, Maximize2, MessageSquare, Send } from "lucide-react";
+import { Paperclip, Download, Trash2, Image as ImageIcon, FileText, File, X, Maximize2, MessageSquare, Send } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { TaskComment, TaskCommentWithUser } from "@/types";
+import type { TaskCommentWithUser } from "@/types";
 
 const BUCKET = "task-artifacts";
 
 function getAttachmentIcon(att: { file_type: string | null }): LucideIcon {
-  if (att.file_type?.startsWith("image/")) return Image;
+  if (att.file_type?.startsWith("image/")) return ImageIcon;
   const t = (att.file_type ?? "").toLowerCase();
   if (t.includes("pdf") || t.includes("document") || t.includes("msword") || t.includes("word")) return FileText;
   return File;
@@ -60,11 +61,15 @@ function ImagePreviewModal({
         className="relative flex max-h-[90vh] max-w-[90vw] items-center justify-center p-12"
         onClick={(e) => e.stopPropagation()}
       >
-        <img
-          src={imageUrl}
-          alt="Preview"
-          className="max-h-[85vh] max-w-full object-contain"
-        />
+        <div className="relative w-full max-w-full h-[85vh] max-h-[85vh]">
+          <Image
+            src={imageUrl}
+            alt="Preview"
+            fill
+            className="object-contain"
+            sizes="90vw"
+          />
+        </div>
         <div className="absolute right-2 top-2 flex gap-2">
           <Button
             type="button"
@@ -124,6 +129,7 @@ export function TaskModal({
   const [comments, setComments] = useState<TaskCommentWithUser[]>([]);
   const [newComment, setNewComment] = useState("");
   const [commentAuthorId, setCommentAuthorId] = useState<string>(task.assignee_id ?? users[0]?.id ?? "");
+  const [currentUserName, setCurrentUserName] = useState<string>("ผู้ใช้");
   const [sendingComment, setSendingComment] = useState(false);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const supabase = createClient();
@@ -140,6 +146,20 @@ export function TaskModal({
   useEffect(() => {
     loadAttachments();
   }, [loadAttachments]);
+
+  useEffect(() => {
+    const setCurrentUserFromAuth = async () => {
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id;
+      if (!uid) return;
+      const match = users.find((u) => u.id === uid);
+      if (match) {
+        setCommentAuthorId(uid);
+        setCurrentUserName(match.name);
+      }
+    };
+    setCurrentUserFromAuth();
+  }, [supabase, users]);
 
   const loadComments = useCallback(async () => {
     const { data } = await supabase
@@ -158,8 +178,9 @@ export function TaskModal({
     e?.preventDefault();
     const content = newComment.trim();
     if (!content) return;
+    setSendingComment(true);
     const author = users.find((u) => u.id === commentAuthorId);
-    const authorName = author?.name ?? "ผู้ใช้";
+    const authorName = author?.name ?? currentUserName;
     const tempId = `temp-${Date.now()}`;
     const optimisticComment: TaskCommentWithUser = {
       id: tempId,
@@ -183,9 +204,11 @@ export function TaskModal({
     });
     if (error) {
       setComments((prev) => prev.filter((c) => c.id !== tempId));
+      setSendingComment(false);
       return;
     }
-    loadComments();
+    await loadComments();
+    setSendingComment(false);
   };
 
   const handleCommentInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -370,12 +393,14 @@ export function TaskModal({
                         <button
                           type="button"
                           onClick={() => setPreviewImageUrl(att.file_url)}
-                          className="h-12 w-12 rounded object-cover shrink-0 overflow-hidden border border-border hover:ring-2 hover:ring-primary/50 focus:outline-none focus:ring-2 focus:ring-primary"
+                          className="h-12 w-12 rounded object-cover shrink-0 overflow-hidden border border-border hover:ring-2 hover:ring-primary/50 focus:outline-none focus:ring-2 focus:ring-primary relative"
                         >
-                          <img
+                          <Image
                             src={att.file_url}
                             alt={att.file_name}
-                            className="h-full w-full object-cover"
+                            fill
+                            className="object-cover"
+                            sizes="3rem"
                           />
                         </button>
                       ) : (
@@ -521,12 +546,14 @@ export function TaskModal({
                     key={c.id}
                     className="flex gap-3 rounded-lg bg-background border p-3 text-left"
                   >
-                    <div className="shrink-0">
+                    <div className="shrink-0 relative h-9 w-9">
                       {avatarUrl ? (
-                        <img
+                        <Image
                           src={avatarUrl}
                           alt=""
-                          className="h-9 w-9 rounded-full object-cover"
+                          width={36}
+                          height={36}
+                          className="rounded-full object-cover h-9 w-9"
                         />
                       ) : (
                         <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
@@ -562,20 +589,12 @@ export function TaskModal({
             )}
           </div>
           <form onSubmit={handleSendComment} className="p-3 border-t bg-background flex gap-2 items-end">
-            <select
-              value={commentAuthorId}
-              onChange={(e) => setCommentAuthorId(e.target.value)}
-              className={cn(
-                "flex h-9 w-32 rounded-md border border-input bg-background px-2 text-sm shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              )}
-              title="แสดงชื่อเป็น"
-            >
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2 shrink-0 text-xs text-muted-foreground">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary font-medium">
+                {currentUserName.charAt(0).toUpperCase()}
+              </span>
+              <span className="max-w-[120px] truncate">{currentUserName}</span>
+            </div>
             <textarea
               ref={commentInputRef}
               value={newComment}

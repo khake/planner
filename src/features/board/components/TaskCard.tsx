@@ -1,6 +1,7 @@
 "use client";
 
 import { useDraggable } from "@dnd-kit/core";
+import Image from "next/image";
 import type { TaskWithAssignee } from "@/types";
 import { cn } from "@/lib/utils";
 import { Paperclip } from "lucide-react";
@@ -45,16 +46,18 @@ export function TaskCard({
         }
       }}
       className={cn(
-        "rounded-lg border bg-background shadow-sm cursor-grab active:cursor-grabbing text-left hover:ring-2 hover:ring-primary/30 transition-shadow overflow-hidden",
-        isDragging && "opacity-50"
+        "card cursor-grab active:cursor-grabbing text-left hover:bg-accent hover:ring-1 hover:ring-primary/20 transition-shadow overflow-hidden",
+        isDragging && "opacity-50 shadow-none"
       )}
     >
       {hasCover && (
-        <div className="w-full h-28 bg-muted shrink-0">
-          <img
+        <div className="relative w-full h-28 bg-muted shrink-0">
+          <Image
             src={coverImageUrl!}
             alt=""
-            className="w-full h-full object-cover"
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 16rem"
           />
         </div>
       )}

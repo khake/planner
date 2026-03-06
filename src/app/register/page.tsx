@@ -1,61 +1,73 @@
 "use client";
 
-import { Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-function LoginForm() {
-  const searchParams = useSearchParams();
+export default function RegisterPage() {
   const router = useRouter();
-  const from = searchParams.get("from") || "/projects";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
+    setLoading(true);
     setError(null);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: { name },
+      },
     });
-    setSubmitting(false);
+    setLoading(false);
     if (error) {
-      setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+      setError(error.message);
       return;
     }
-    router.push(from);
+    // หลังสมัครเสร็จให้พาไปหน้า login
+    router.push("/login");
   };
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm rounded-sm border border-[#E8E8E8] bg-card text-card-foreground p-6 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
-        <h1 className="text-xl font-semibold mb-4 text-center">เข้าสู่ระบบ</h1>
+        <h1 className="text-xl font-semibold mb-4 text-center">ลงทะเบียนผู้ใช้</h1>
         <p className="text-sm text-muted-foreground mb-4 text-center">
-          ใส่อีเมลและรหัสผ่านเพื่อเข้าสู่ Squads Board
+          สร้างบัญชีสำหรับใช้งาน Squads Board
         </p>
         {error && (
-          <p className="text-sm text-destructive mb-3 text-center">
+          <p className="text-sm text-destructive mb-3 text-center" role="alert">
             {error}
           </p>
         )}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleRegister} className="space-y-4">
+          <div>
+            <Label htmlFor="name">ชื่อที่ใช้แสดง</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="mt-1"
+              placeholder="เช่น สมชาย ใจดี"
+            />
+          </div>
           <div>
             <Label htmlFor="email">อีเมล</Label>
             <Input
               id="email"
               type="email"
               autoComplete="email"
-              className="mt-1"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              className="mt-1"
               required
             />
           </div>
@@ -63,29 +75,20 @@ function LoginForm() {
             <Label htmlFor="password">รหัสผ่าน</Label>
             <Input
               id="password"
-              name="password"
               type="password"
-              autoComplete="current-password"
-              className="mt-1"
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="mt-1"
               required
             />
           </div>
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "กำลังลงทะเบียน..." : "ลงทะเบียน"}
           </Button>
         </form>
       </div>
     </main>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<main className="flex min-h-screen items-center justify-center p-4"><p className="text-muted-foreground">กำลังโหลด...</p></main>}>
-      <LoginForm />
-    </Suspense>
   );
 }
 

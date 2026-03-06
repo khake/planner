@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
-import { BacklogBoard } from "@/features/backlog/components";
+import { DynamicBacklogBoard } from "@/features/backlog/components";
 
 export default async function BacklogPage({
   params,
@@ -23,7 +23,7 @@ export default async function BacklogPage({
 
   return (
     <main className="container mx-auto py-8 px-4">
-      <BacklogBoard
+      <DynamicBacklogBoard
         projectId={project.id}
         projectName={project.name}
         openCreateSprint={openCreateSprint}
