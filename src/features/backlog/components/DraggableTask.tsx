@@ -33,7 +33,7 @@ export function DraggableTask({ task, onClick }: DraggableTaskProps) {
         isDragging && "opacity-40 shadow-none"
       )}
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
+      <div className="mb-2 flex items-center justify-between gap-2 flex-wrap">
         <span
           className={cn(
             "inline-flex h-6 w-6 items-center justify-center rounded-md",
@@ -43,7 +43,12 @@ export function DraggableTask({ task, onClick }: DraggableTaskProps) {
         >
           <TypeIcon className="h-3.5 w-3.5" />
         </span>
-        <span className="text-xs text-[#666666]">{task.priority}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          {task.ticket_key && (
+            <span className="text-[11px] font-mono text-[#666666] truncate">{task.ticket_key}</span>
+          )}
+          <span className="text-xs text-[#666666] shrink-0">{task.priority}</span>
+        </div>
       </div>
       <span className="block text-sm font-medium text-[#222222]">{task.title}</span>
       {task.tags.length > 0 && (

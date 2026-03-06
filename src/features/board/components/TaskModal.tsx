@@ -13,7 +13,7 @@ import { RichTextViewer } from "@/components/rich-text-viewer";
 import { isRichTextEmpty, sanitizeRichTextHtml } from "@/lib/rich-text";
 import { getTagClassName, getTaskTypeMeta, normalizeTaskTag } from "@/lib/task-ui";
 import { cn } from "@/lib/utils";
-import { Paperclip, Download, Trash2, Image as ImageIcon, FileText, File, X, Maximize2, MessageCircle, Send, Plus, XCircle } from "lucide-react";
+import { Paperclip, Download, Trash2, Image as ImageIcon, FileText, File, X, Maximize2, MessageCircle, Send, Plus, XCircle, Copy, ExternalLink } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TaskCommentWithUser } from "@/types";
 
@@ -480,10 +480,62 @@ export function TaskModal({
           aria-hidden={isActivityOpen}
         >
           <div className="mb-4 rounded-xl border bg-card px-5 py-4 shadow-sm">
-            <h2 className="text-lg font-semibold">รายละเอียดงาน</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              แก้ไขรายละเอียดงาน ไฟล์แนบ และข้อมูลพื้นฐานของ task ได้จากส่วนนี้
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">รายละเอียดงาน</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  แก้ไขรายละเอียดงาน ไฟล์แนบ และข้อมูลพื้นฐานของ task ได้จากส่วนนี้
+                </p>
+              </div>
+              {task.ticket_key && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-md border bg-muted/50 px-2 py-1 font-mono text-sm font-medium text-muted-foreground">
+                    {task.ticket_key}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => {
+                      navigator.clipboard.writeText(task.ticket_key);
+                    }}
+                    title="คัดลอก ticket key"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    คัดลอก key
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => {
+                      const url = `${typeof window !== "undefined" ? window.location.origin : ""}/tickets/${encodeURIComponent(task.ticket_key)}`;
+                      navigator.clipboard.writeText(url);
+                    }}
+                    title="คัดลอกลิงก์เปิดงาน"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    คัดลอกลิงก์
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => {
+                      const path = `/tickets/${encodeURIComponent(task.ticket_key)}`;
+                      window.open(path, "_blank");
+                    }}
+                    title="เปิดหน้ารายละเอียดงานในแท็บใหม่"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    เปิดหน้า ticket
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
           <form id="task-form" onSubmit={handleSave} className="flex min-h-full flex-col gap-4">
             <div className="grid flex-1 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,0.9fr)]">

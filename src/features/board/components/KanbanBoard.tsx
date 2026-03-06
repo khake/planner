@@ -171,7 +171,7 @@ export function KanbanBoard({
     async (
       nextLanes: LaneState,
       statuses: BoardLaneStatus[],
-      movedTask?: { id: string; from: BoardLaneStatus; to: BoardLaneStatus }
+      movedTask?: { id: string; from: BoardLaneStatus; to: BoardLaneStatus; ticket_key?: string }
     ) => {
       const uniqueStatuses = Array.from(new Set(statuses));
       const updates = uniqueStatuses.flatMap((status) =>
@@ -202,6 +202,7 @@ export function KanbanBoard({
                 old_status: movedTask.from,
                 new_status: movedTask.to,
                 sprint_id: sprintId,
+                ticket_key: movedTask.ticket_key ?? undefined,
               },
             }),
           });
@@ -387,6 +388,7 @@ export function KanbanBoard({
         id: taskId,
         from: draggedTask.status as BoardLaneStatus,
         to: finalStatus,
+        ticket_key: draggedTask.ticket_key,
       });
     } catch {
       setLanes(snapshot);
