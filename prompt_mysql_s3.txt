@@ -1,0 +1,516 @@
+สร้างโปรเจกต์ **Project Planner (Jira Clone)** ใหม่ โดยให้ **เทียบเท่าพฤติกรรมของโปรเจกต์เดิม** แต่เปลี่ยนสแตกจาก Supabase ไปเป็น **Prisma + MySQL + NextAuth + Amazon S3** ตามข้อกำหนดด้านล่าง
+
+สิ่งสำคัญ:
+- ใช้ `Next.js 15` + `App Router` + `React 19` + `TypeScript`
+- ใช้ `Tailwind CSS` + `tailwindcss-animate`
+- ใช้ UI แนว `shadcn-style` และ utility ที่จำเป็น เช่น `class-variance-authority`, `clsx`, `tailwind-merge`
+- ใช้ `@dnd-kit/core` + `@dnd-kit/utilities` สำหรับ drag & drop
+- **ห้ามใช้ Supabase** สำหรับ auth, database หรือ storage
+- เปลี่ยน data layer เป็น `Prisma + MySQL`
+- เปลี่ยน auth เป็น `NextAuth` แบบ `Credentials Provider`
+- เปลี่ยน file storage เป็น `Amazon S3`
+- โค้ดต้องพร้อมพัฒนาและ deploy ได้จริงบน AWS Amplify หรือ EC2
+
+---
+## เป้าหมายของโปรเจกต์
+
+แอปนี้คือ Jira clone ขนาดเล็กสำหรับจัดการงานของทีม โดยต้องคง behavior หลักของโปรเจกต์เดิมไว้:
+- มีหน้า `Squads / Projects`
+- มี `Project detail`
+- มี `Backlog`
+- มี `Sprint board`
+- มีการลาก task ระหว่าง Backlog / Sprint และระหว่าง lanes บน board
+- มีการสร้าง/เริ่ม/ปิด sprint
+- มี modal รายละเอียด task
+- มี comments และ attachments
+- มี profile page
+- มี toast notification
+- มี route protection
+
+หน้าแรก `/`:
+- ถ้าล็อกอินแล้วให้ redirect ไป `/projects`
+- ถ้ายังไม่ล็อกอินให้แสดง landing page แบบเรียบง่าย พร้อมปุ่มไปหน้า projects/login ตาม flow ที่เหมาะสม
+
+---
+## Tech Stack ที่ต้องใช้
+
+- `Next.js 15` (App Router)
+- `React 19`
+- `TypeScript`
+- `Tailwind CSS`
+- `Prisma`
+- `MySQL`
+- `NextAuth` (`Credentials Provider`)
+- `bcrypt` หรือ `bcryptjs` สำหรับ hash password
+- `AWS SDK v3` สำหรับ S3
+- `@dnd-kit/core` และ `@dnd-kit/utilities`
+- ถ้าจำเป็น สามารถใช้ `zod` สำหรับ validation
+
+---
+## แนวทางสถาปัตยกรรม
+
+ให้จัดโครงสร้างแบบ feature-based ใกล้เคียงเดิม:
+
+```text
+src/
+├── app/
+│   ├── layout.tsx
+│   ├── page.tsx
+│   ├── login/page.tsx
+│   ├── register/page.tsx
+│   ├── profile/page.tsx
+│   ├── logout/route.ts
+│   ├── api/
+│   │   ├── auth/[...nextauth]/route.ts
+│   │   ├── activity-log/route.ts
+│   │   ├── uploads/
+│   │   │   ├── sign/route.ts
+│   │   │   ├── complete/route.ts
+│   │   │   └── delete/route.ts
+│   └── projects/
+│       ├── page.tsx
+│       └── [id]/
+│           ├── page.tsx
+│           ├── backlog/page.tsx
+│           └── board/
+│               ├── page.tsx
+│               └── [sprintId]/page.tsx
+├── components/
+│   ├── ui/
+│   └── current-user-tag.tsx
+├── features/
+│   ├── projects/
+│   ├── sprints/
+│   ├── backlog/
+│   └── board/
+├── contexts/
+│   └── ToastContext.tsx
+├── lib/
+│   ├── auth.ts
+│   ├── prisma.ts
+│   ├── s3.ts
+│   ├── utils.ts
+│   └── activity-log.ts
+└── types/
+    └── index.ts
+```
+
+แนวคิดสำคัญ:
+- Server Components ใช้สำหรับ page/data fetch หลักเท่าที่เหมาะสม
+- Client Components ใช้กับ drag & drop, modal, form interaction
+- แยก data access ผ่าน Prisma
+- มี helper สำหรับ auth session และ current user
+- เขียนโค้ดให้ maintain ง่าย ไม่ยัด logic ทุกอย่างไว้ใน page เดียว
+
+---
+## Database Schema ที่ต้องมี
+
+ใช้ `Prisma schema` และ `MySQL` โดยต้องมีตาราง/โมเดลหลักดังนี้:
+
+1. `users`
+- ใช้เป็นตารางหลักสำหรับผู้ใช้ และให้รองรับ NextAuth ด้วย
+- fields:
+  - `id`
+  - `email` (unique)
+  - `name`
+  - `password_hash`
+  - `avatar_url`
+  - `created_at`
+  - `updated_at`
+
+2. `profiles`
+- แยกข้อมูลโปรไฟล์ที่แก้ไขได้เพิ่มเติมจาก auth user
+- fields:
+  - `id`
+  - `user_id` (unique, FK -> users.id)
+  - `display_name`
+  - `avatar_url`
+  - `bio` (optional)
+  - `created_at`
+  - `updated_at`
+
+3. `projects`
+- fields:
+  - `id`
+  - `name`
+  - `description`
+  - `created_at`
+  - `updated_at`
+
+4. `sprints`
+- fields:
+  - `id`
+  - `project_id` (FK)
+  - `name`
+  - `status` = `planned | active | completed`
+  - `start_date`
+  - `end_date`
+  - `goal`
+  - `actual_end_date`
+  - `created_at`
+  - `updated_at`
+
+5. `tasks`
+- fields:
+  - `id`
+  - `project_id` (FK)
+  - `sprint_id` (nullable, FK)
+  - `title`
+  - `description`
+  - `status` = `backlog | todo | in_progress | review | done`
+  - `priority` = `low | medium | high | urgent`
+  - `assignee_id` (nullable, FK -> users.id)
+  - `created_at`
+  - `updated_at`
+
+6. `attachments`
+- fields:
+  - `id`
+  - `task_id` (FK)
+  - `file_key` (S3 object key)
+  - `file_url`
+  - `file_name`
+  - `file_type`
+  - `file_size`
+  - `created_by`
+  - `created_at`
+
+7. `task_comments`
+- fields:
+  - `id`
+  - `task_id` (FK)
+  - `author_id` (nullable FK -> users.id)
+  - `author_name`
+  - `content`
+  - `created_at`
+
+8. `activity_logs`
+- fields:
+  - `id`
+  - `user_id` (nullable FK -> users.id)
+  - `action`
+  - `target_type`
+  - `target_id`
+  - `details` (JSON)
+  - `created_at`
+
+9. ตารางที่จำเป็นสำหรับ NextAuth / session
+- ให้รองรับ `Credentials Provider` และ session อย่างถูกต้อง
+- ถ้าใช้ Prisma Adapter ให้มีโมเดลที่จำเป็น เช่น `Session`, `Account`, `VerificationToken`
+- ถ้าใช้ JWT session strategy แทน ให้ยังคงโครงสร้างที่เหมาะกับการขยายในอนาคต
+
+ข้อกำหนดเพิ่มเติมของ schema:
+- ใช้ Prisma enum สำหรับ sprint status, task status, task priority
+- กำหนด relation และ cascade behavior ให้เหมาะสม
+- index ฟิลด์ที่ใช้ query บ่อย เช่น `project_id`, `sprint_id`, `assignee_id`, `task_id`
+- สร้าง `seed` สำหรับข้อมูลตัวอย่างอย่างน้อย:
+  - demo user
+  - 1 project
+  - planned sprint / active sprint
+  - backlog tasks และ sprint tasks
+
+---
+## Prisma Requirements
+
+สิ่งที่ต้องมี:
+- `prisma/schema.prisma`
+- migration สำหรับสร้าง schema
+- seed script
+- helper สำหรับ instantiate Prisma client แบบไม่สร้างหลาย instance ใน dev
+
+กำหนดชื่อ model และ mapping ให้ชัดเจน:
+- ถ้าชื่อ model เป็น PascalCase ให้ map ไปยัง table ชื่อ snake_case/plural ตาม requirement เช่น `@@map("users")`
+- field timestamp ใช้ชื่อในฐานข้อมูลให้สอดคล้อง เช่น `created_at`, `updated_at`
+
+---
+## Auth Requirements
+
+ใช้ `NextAuth` แบบ `Credentials Provider`:
+- หน้า `register` สำหรับสมัครสมาชิกใหม่
+- หน้า `login` สำหรับเข้าสู่ระบบ
+- route `logout` สำหรับ sign out แล้ว redirect ไป `/login`
+- มี helper ดึง current session/current user ได้ทั้ง server และ client ตามความเหมาะสม
+
+flow ที่ต้องรองรับ:
+- Register ด้วย email + password
+- ตรวจสอบ validation ขั้นพื้นฐาน
+- hash password ก่อนบันทึก
+- Login ด้วย email + password
+- Logout
+- Protected routes
+- ดึงข้อมูล user ปัจจุบันเพื่อแสดงใน header และ profile
+- Update profile
+- Change password
+
+Route protection:
+- ป้องกัน `/projects`, `/projects/*`, `/profile`
+- ถ้าไม่มี session ให้ redirect ไป `/login?from=...`
+- หน้า `login` และ `register` ไม่ต้องบังคับ session
+- ถ้าล็อกอินแล้วและเข้าหน้า `/login` หรือ `/register` ให้ redirect ไป `/projects` ได้
+
+middleware:
+- ใช้ `middleware.ts` หรือแนวทางของ NextAuth ที่เหมาะกับ App Router
+- behavior ต้องเทียบเท่าของเดิม
+
+Current user display:
+- มี `CurrentUserTag` แสดงชื่อย่อหรือ email ส่วนหน้าใกล้ปุ่ม profile/logout
+
+---
+## S3 Upload Requirements
+
+เปลี่ยนจาก Supabase Storage เป็น `Amazon S3`
+
+แนวทางที่ต้องรองรับ:
+- ใช้วิธี `presigned URL` หรือ `server upload` ก็ได้ แต่ขอให้เลือกวิธีที่ปลอดภัยและอธิบายในโค้ดให้ชัด
+- หลังอัปโหลดเสร็จ ต้องบันทึก metadata ลงตาราง `attachments`
+- ต้องสามารถ:
+  - อัปโหลดไฟล์แนบหลายไฟล์
+  - รองรับรูปภาพ, PDF, DOC/DOCX เป็นอย่างน้อย
+  - แสดงรายการไฟล์แนบ
+  - เปิด/ดาวน์โหลดไฟล์ได้
+  - ลบไฟล์แนบได้ทั้งจาก S3 และ metadata ใน DB
+
+ข้อกำหนดเชิง implementation:
+- สร้าง S3 object key แบบปลอดภัย เช่น `tasks/{taskId}/{timestamp}-{safeFileName}`
+- sanitize filename
+- จำกัดประเภทไฟล์ตามที่รองรับ
+- เก็บ `file_key`, `file_url`, `file_name`, `file_type`, `file_size`
+- ถ้าเป็นรูปภาพ ให้ใช้ไฟล์รูปแรกเป็น cover image บน task card ได้
+
+---
+## Route Map ที่ต้องมี
+
+- `/` หน้าแรก
+- `/login`
+- `/register`
+- `/logout`
+- `/profile`
+- `/projects`
+- `/projects/[id]`
+- `/projects/[id]/backlog`
+- `/projects/[id]/board`
+- `/projects/[id]/board/[sprintId]`
+- `/api/auth/[...nextauth]`
+- `/api/activity-log`
+- `/api/uploads/sign`
+- `/api/uploads/complete`
+- `/api/uploads/delete`
+
+---
+## Feature Requirements
+
+### 1. Squads / Projects
+- แสดงรายการ squads/projects
+- สร้าง project ได้
+- เปิดดูรายละเอียด project ได้
+- มีลิงก์ไป Backlog และ Board
+
+### 2. Sprints
+- สร้าง sprint ได้จาก backlog หรือ project detail
+- มีสถานะ `planned`, `active`, `completed`
+- ใน 1 project มี active sprint ได้ทีละ 1 sprint
+- กด `Start Sprint` แล้ว sprint planned นั้นกลายเป็น active
+- ถ้ามี active sprint เดิม ให้จัดการตาม behavior เดิม คือไม่ควรเหลือ active ซ้อนกัน
+- กด `Complete Sprint` ได้จาก board
+- เมื่อ complete sprint:
+  - งานที่ไม่เสร็จต้องเลือกได้ว่าจะย้ายกลับ backlog หรือย้ายไป next sprint
+  - บันทึก `actual_end_date`
+
+### 3. Backlog
+- แสดง backlog tasks และ sprint columns
+- ลาก task จาก backlog ไป sprint ได้
+- ลาก task จาก sprint กลับ backlog ได้
+- ถ้าย้ายเข้า sprint ให้สถานะ task เป็น `todo`
+- ถ้าย้ายกลับ backlog ให้สถานะ task เป็น `backlog`
+- สร้าง task ใหม่ได้ทั้งใน backlog และใน sprint
+
+### 4. Kanban Board
+- มี 4 lanes:
+  - `Todo`
+  - `In Progress`
+  - `Review`
+  - `Done`
+- ลาก task ระหว่าง lanes ได้
+- บันทึกสถานะลงฐานข้อมูล
+- แสดง progress ของ sprint เช่น done count / total count / progress bar
+- หน้า `/projects/[id]/board` ควรชี้ไป active sprint หรือแสดงข้อความแนะนำถ้ายังไม่มี active sprint
+- หน้า `/projects/[id]/board/[sprintId]` ใช้เปิด board ของ sprint เฉพาะ
+
+### 5. Tasks
+- สร้าง task
+- แก้ไข task
+- ลบ task
+- ฟิลด์อย่างน้อย:
+  - title
+  - description
+  - status
+  - priority
+  - assignee
+- เปิด modal รายละเอียด task ได้
+- modal ต้องรองรับ:
+  - แก้ title/description
+  - เปลี่ยน status
+  - เปลี่ยน priority
+  - เปลี่ยน assignee
+  - แนบไฟล์
+  - ลบไฟล์แนบ
+  - ดู comments
+  - เพิ่ม comment
+
+### 6. Comments
+- เก็บใน `task_comments`
+- แสดงชื่อคนคอมเมนต์
+- เรียงใหม่สุดก่อนหรือเลือกแบบที่ใช้งานง่าย แต่ต้องสม่ำเสมอ
+- รองรับ optimistic update ได้จะดี
+
+### 7. Attachments
+- รองรับรูปภาพ, PDF, Word
+- มี preview รูปภาพ
+- มีปุ่มดาวน์โหลด
+- มีปุ่มลบ
+- แสดงจำนวนไฟล์แนบบน task card ได้
+
+### 8. Profile
+- แก้ไขชื่อโปรไฟล์ได้
+- แก้ avatar URL หรือ avatar field ตามแบบที่เลือกได้
+- เปลี่ยนรหัสผ่านได้
+- โหลดข้อมูล current user ปัจจุบันมาแสดง
+
+### 9. Activity Logs
+- สร้าง API หรือ helper สำหรับบันทึก action สำคัญ เช่น:
+  - `CREATE_TASK`
+  - `MOVE_TASK`
+  - `UPDATE_STATUS`
+  - `START_SPRINT`
+  - `COMPLETE_SPRINT`
+- เก็บใน `activity_logs`
+
+### 10. Toast
+- มี Toast provider แบบเรียบง่าย
+- ใช้แจ้งผลสำเร็จของ action สำคัญ เช่น สร้าง sprint สำเร็จ
+
+---
+## UI / UX Constraints
+
+ต้องคงแนวทาง UI ใกล้ของเดิม:
+- light mode
+- ใช้ฟอนต์ `Prompt`
+- สีหลักโทน Shopee-inspired: `#EE4D2D`
+- มี class/สไตล์ `.card` หรือ reusable card style
+- ใช้ modal component ร่วมสำหรับ dialog หลัก
+- ปุ่มโปรไฟล์, logout, current user tag อยู่ส่วนหัว
+- หน้า profile จัดเป็น card และปุ่ม action อยู่ชิดขวาใกล้ input อย่างเหมาะสม
+- task modal แบ่ง layout ซ้าย/ขวา:
+  - ซ้าย: title, description, attachments, comments
+  - ขวา: metadata เช่น status, priority, assignee
+- drag overlay ต้องใช้ `dropAnimation={null}` เพื่อไม่ให้การ์ดเด้งกลับแปลก ๆ
+
+ถ้ามีข้อความภาษาไทยใน UI เดิม สามารถใช้ภาษาไทยต่อได้
+
+---
+## Data / Type Requirements
+
+สร้าง TypeScript types ที่สอดคล้องกับ model หลัก:
+- `SprintStatus`
+- `TaskStatus`
+- `TaskPriority`
+- `User`
+- `Project`
+- `Sprint`
+- `Task`
+- `Attachment`
+- `TaskComment`
+- relation types เช่น `TaskWithAssignee`, `SprintWithTasks`, `ProjectWithSprints`
+
+---
+## Environment Variables
+
+รองรับ `.env.local.example` และระบุ env vars ให้ครบ:
+
+- `DATABASE_URL`
+- `NEXTAUTH_SECRET`
+- `NEXTAUTH_URL`
+- `AWS_REGION`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_S3_BUCKET`
+- `AWS_S3_PUBLIC_BASE_URL` หรือค่าที่เทียบเท่า
+
+ถ้าใช้ presigned URL:
+- ระบุ env ที่เกี่ยวข้องให้ครบตาม implementation ที่เลือก
+
+ข้อกำหนด:
+- ใช้ env vars ทั้งหมดผ่าน config ที่เหมาะสม
+- ห้าม hardcode secret
+- อธิบายวิธีตั้งค่า env สำหรับ local/dev/prod
+
+---
+## Deployment Constraints
+
+โปรเจกต์ต้อง deploy ได้บน:
+- AWS Amplify
+- EC2
+
+โดยคำนึงถึง:
+- ใช้ env vars สำหรับ DB และ S3
+- ไม่พึ่ง provider-specific behavior ของ Supabase
+- build และ runtime ต้องทำงานใน production ได้จริง
+- ถ้าใช้ NextAuth ให้ตั้งค่า URL/secret แบบ production-friendly
+
+---
+## สิ่งที่ต้องส่งออกจากการสร้างโปรเจกต์
+
+สร้างโปรเจกต์ให้ครบพร้อมไฟล์สำคัญอย่างน้อย:
+- `prisma/schema.prisma`
+- migration files
+- seed script
+- `middleware.ts`
+- `src/lib/auth.ts`
+- `src/lib/prisma.ts`
+- `src/lib/s3.ts`
+- auth routes / upload routes / activity log route
+- pages และ components ตาม route map
+- `.env.local.example`
+- `README.md` พร้อมวิธีรัน
+
+---
+## ลำดับการทำงานที่แนะนำ
+
+ให้ทำตามลำดับนี้:
+1. สร้างโครง Next.js 15 + TypeScript + Tailwind
+2. ติดตั้ง dependencies ที่จำเป็น
+3. ตั้งค่า Prisma + MySQL
+4. ออกแบบ Prisma schema + migrations + seed
+5. ตั้งค่า NextAuth credentials flow
+6. สร้าง middleware และ protected routes
+7. สร้างโครง pages/routes หลัก
+8. สร้าง data access layer และ types
+9. สร้าง projects / sprints / backlog / board
+10. สร้าง task modal, comments, attachments
+11. เชื่อม S3 upload/delete flow
+12. สร้าง profile page + change password
+13. สร้าง toast + current user tag
+14. ปรับ redirect หน้าแรกและ auth redirect
+15. ทดสอบ flow หลัก end-to-end
+
+---
+## คุณภาพของโค้ดที่คาดหวัง
+
+- โค้ดอ่านง่าย แยก responsibility ชัดเจน
+- ไม่ใช้ mock แทน implementation จริงในฟีเจอร์หลัก
+- ถ้ามีส่วนที่ต้องเลือก implementation ให้เลือกแบบ production-minded
+- ระวัง error handling ใน auth, upload, และ drag/drop persistence
+- ใช้ naming ที่สอดคล้องกันทั้ง schema, types, routes, และ UI
+
+---
+## คำสั่งสำคัญสำหรับ AI ที่จะสร้างโปรเจกต์นี้
+
+กรุณาสร้างโปรเจกต์ให้ครบตาม requirement ข้างต้นแบบใช้งานได้จริง ไม่ใช่แค่โครงเปล่า โดย:
+- สร้างไฟล์ทั้งหมดที่จำเป็น
+- เติม implementation หลักให้ครบ
+- ระบุ dependencies ที่ต้องติดตั้ง
+- ระบุ Prisma schema, migrations, seed, env vars และ route map ให้ครบ
+- ให้ behavior ใกล้เคียงโปรเจกต์เดิมมากที่สุด แม้จะเปลี่ยน backend stack แล้ว
+- ถ้ามีจุดที่ต้องตัดสินใจเอง ให้เลือกแนวทางที่เรียบง่ายแต่พร้อมใช้จริงใน production
+
+สรุปอีกครั้ง: ต้องได้ Jira-like planner ที่คง UX/feature เดิม แต่ย้ายจาก `Supabase + Postgres + Storage` ไปเป็น `Prisma + MySQL + NextAuth + S3` อย่างสมบูรณ์

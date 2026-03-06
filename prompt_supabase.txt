@@ -1,0 +1,74 @@
+สร้างโปรเจกต์ **Project Planner (Jira Clone)** ด้วยสเปกดังนี้:
+---
+## Tech Stack
+- **Next.js 15** (App Router)
+- **React 19**
+- **TypeScript**
+- **Tailwind CSS** + **tailwindcss-animate**
+- **Shadcn-style UI** (Button, Input, Label, Modal, Textarea) ใช้ class-variance-authority, clsx, tailwind-merge
+- **Supabase** (Auth + Postgres + Storage)
+- **@dnd-kit/core** + **@dnd-kit/utilities** สำหรับ drag & drop
+---
+## โครงสร้างโฟลเดอร์ (Feature-based)
+src/ ├── app/ # App Router │ ├── layout.tsx # ToastProvider + globals.css │ ├── page.tsx # หน้าแรก (ถ้า login แล้ว redirect ไป /projects) │ ├── login/page.tsx │ ├── register/page.tsx │ ├── logout/route.ts # GET → signOut + redirect /login │ ├── profile/page.tsx # แก้ไขโปรไฟล์ + เปลี่ยนรหัสผ่าน │ ├── api/activity-log/route.ts │ └── projects/ │ ├── page.tsx # รายการ Squads (projects) │ └── [id]/ │ ├── page.tsx # รายละเอียด Squad + สปรินต์ │ ├── backlog/page.tsx │ └── board/ │ ├── page.tsx # Active Sprint board │ └── [sprintId]/page.tsx # หน้า board ของ sprint เฉพาะ ├── components/ │ ├── ui/ # button, input, label, modal, textarea │ └── current-user-tag.tsx # แสดงชื่อผู้ใช้ (email) ใกล้ปุ่มโปรไฟล์ ├── features/ │ ├── projects/ │ │ └── components/ # ProjectList, ProjectSprintsSection │ ├── sprints/ │ │ ├── CreateSprintModal.tsx │ │ └── createSprint.ts │ ├── board/ │ │ └── components/ # KanbanBoard, KanbanLane, TaskCard, TaskModal, DynamicKanbanBoard │ └── backlog/ │ └── components/ # BacklogBoard, DraggableTask, DroppableSprint, DynamicBacklogBoard ├── contexts/ │ └── ToastContext.tsx ├── lib/ │ ├── supabase/client.ts # createBrowserClient │ ├── supabase/server.ts # createServerClient + cookies │ ├── utils.ts # cn() │ └── activity-log.ts └── types/ └── index.ts
+
+---
+## Database Schema (Supabase / Postgres)
+**ตารางหลัก:**
+- **users** – id, name, avatar_url
+- **projects** – id, name, description
+- **sprints** – id, project_id, name, status (planned | active | completed), start_date, end_date, goal, actual_end_date
+- **tasks** – id, project_id, sprint_id (nullable = backlog), title, description, status (backlog | todo | in_progress | review | done), priority (low | medium | high | urgent), assignee_id
+- **attachments** – id, task_id, file_url, file_name, file_type
+- **task_comments** – id, task_id, author_name, author_id, content
+- **profiles** – id (FK auth.users), name, avatar_url (sync จาก auth.users)
+- **activity_logs** – id, user_id, action, target_type, target_id, details (jsonb)
+**Storage:** bucket `task-artifacts` สำหรับอัปโหลดไฟล์แนบ task
+**Trigger:** เมื่อมี user ใหม่ใน auth.users ให้สร้าง profile และ sync ไป users
+---
+## Auth & Route Protection
+- **Auth:** Supabase Auth (signInWithPassword, signUp, signOut)
+- **Login:** อีเมล + รหัสผ่าน
+- **Register:** อีเมล + รหัสผ่าน (ต้องมี email confirmation ถ้าเปิด)
+- **Middleware:** ป้องกัน /projects, /projects/*, /profile — ถ้าไม่มี session redirect ไป /login?from=...
+- **หน้าแรก (/):** ถ้า login แล้ว redirect ไป /projects
+- **ทุกหน้า projects:** เช็ก Supabase auth ก่อน render (redirect ถ้าไม่มี user)
+---
+## ฟีเจอร์หลัก
+1. **Squads (Projects):** สร้าง/ดูรายการ, ดูรายละเอียด, ลิงก์ไป Backlog / Board
+2. **Sprints:** สร้างใน Backlog, Start Sprint, Complete Sprint (ย้ายงานไม่เสร็จไป Backlog หรือ Next Sprint)
+3. **Backlog:** ลาก task ระหว่าง Backlog กับ Sprint columns (drag & drop)
+4. **Kanban Board:** 4 lanes (Todo, In Progress, Review, Done), ลาก task ระหว่าง lanes
+5. **Task:** สร้าง/แก้ไข/ลบ, กำหนด assignee, priority, attachments (รูป/PDF), comments
+6. **Profile:** แก้ไขชื่อ, เปลี่ยนรหัสผ่าน
+7. **Toast:** แจ้งการกระทำสำเร็จ (เช่น สร้าง Sprint แล้ว)
+---
+## UI/UX
+- **Theme:** Shopee-inspired (primary ส้ม #EE4D2D), light mode, ฟอนต์ Prompt
+- **Card:** class `.card` สำหรับการ์ด (border, shadow)
+- **Modal:** component ร่วมสำหรับ CreateSprint, Create Squad, Complete Sprint
+- **Drag & drop:** ใช้ `dropAnimation={null}` ใน DragOverlay เพื่อไม่ให้การ์ดวิ่งกลับไปตำแหน่งเดิม
+- **Header:** ปุ่มโปรไฟล์, Logout, CurrentUserTag (ชื่อผู้ใช้) ใกล้ปุ่มโปรไฟล์
+- **Profile:** แบบฟอร์มมีกรอบ card, ปุ่มอยู่ใกล้ input และจัดชิดขวา
+---
+## Environment Variables
+- NEXT_PUBLIC_SUPABASE_URL
+- NEXT_PUBLIC_SUPABASE_ANON_KEY
+- (ถ้าใช้) DATABASE_URL สำหรับ migration
+- (ถ้าใช้) APP_LOGIN_USER, APP_LOGIN_PASSWORD สำหรับ simple app login
+---
+## สิ่งที่ต้องทำ (ลำดับแนะนำ)
+1. สร้าง Next.js 15 + TypeScript + Tailwind
+2. ติดตั้ง Supabase, @dnd-kit, Shadcn UI components
+3. สร้าง schema ใน Supabase (migrations)
+4. สร้าง Supabase client (server + browser)
+5. สร้าง auth flow (login, register, logout, middleware)
+6. สร้างหน้า projects, projects/[id], backlog, board
+7. สร้าง BacklogBoard + KanbanBoard พร้อม drag & drop
+8. สร้าง TaskModal (แก้ไข task, attachments, comments)
+9. สร้าง CreateSprintModal, ProjectList (สร้าง Squad)
+10. สร้าง Profile, Toast, CurrentUserTag
+11. ปรับ redirect หน้าแรก (ถ้า login แล้วไป /projects)
+12. รัน migration และทดสอบ
+---
+## สร้างโปรเจกต์ให้ครบตามสเปกข้างต้น

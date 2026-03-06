@@ -13,11 +13,12 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { createClient } from "@/lib/supabase/client";
-import type { Sprint, Task } from "@/types";
+import type { Sprint, TaskWithAssignee } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/contexts/ToastContext";
 import { CreateSprintModal } from "@/features/sprints/CreateSprintModal";
+import { TaskModal } from "@/features/board/components";
 import { cn } from "@/lib/utils";
 import { ExternalLink } from "lucide-react";
 import { DraggableTask } from "./DraggableTask";
@@ -32,11 +33,13 @@ export type BacklogBoardProps = {
 export function BacklogBoard({ projectId, projectName, openCreateSprint = false }: BacklogBoardProps) {
   const router = useRouter();
   const { showToast } = useToast();
-  const [backlogTasks, setBacklogTasks] = useState<Task[]>([]);
-  const [tasksBySprint, setTasksBySprint] = useState<Record<string, Task[]>>({});
+  const [backlogTasks, setBacklogTasks] = useState<TaskWithAssignee[]>([]);
+  const [tasksBySprint, setTasksBySprint] = useState<Record<string, TaskWithAssignee[]>>({});
   const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [users, setUsers] = useState<{ id: string; name: string; avatar_url: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [activeTask, setActiveTask] = useState<TaskWithAssignee | null>(null);
+  const [modalTask, setModalTask] = useState<TaskWithAssignee | null>(null);
   const [showCreateSprint, setShowCreateSprint] = useState(false);
   const [creatingIn, setCreatingIn] = useState<null | "backlog" | string>(null);
   const [newCardTitle, setNewCardTitle] = useState("");
@@ -44,17 +47,17 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
   const supabase = createClient();
 
   const findTask = useCallback(
-    (taskId: string): Task | undefined =>
+    (taskId: string): TaskWithAssignee | undefined =>
       backlogTasks.find((t) => t.id === taskId) ??
       Object.values(tasksBySprint).flat().find((t) => t.id === taskId),
     [backlogTasks, tasksBySprint]
   );
 
   const fetchData = useCallback(async () => {
-    const [tasksRes, sprintsRes] = await Promise.all([
+    const [tasksRes, sprintsRes, usersRes] = await Promise.all([
       supabase
         .from("tasks")
-        .select("*")
+        .select("*, assignee:users!assignee_id(id, name, avatar_url)")
         .eq("project_id", projectId)
         .order("created_at", { ascending: true }),
       supabase
@@ -62,12 +65,14 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
         .select("*")
         .eq("project_id", projectId)
         .order("start_date", { ascending: true }),
+      supabase.from("users").select("id, name, avatar_url").order("name"),
     ]);
-    const allTasks: Task[] = (tasksRes.data ?? []) as Task[];
+    const allTasks: TaskWithAssignee[] = (tasksRes.data ?? []) as TaskWithAssignee[];
     const sprintList = sprintsRes.data ?? [];
     if (!sprintsRes.error) setSprints(sprintList);
+    if (!usersRes.error) setUsers(usersRes.data ?? []);
     setBacklogTasks(allTasks.filter((t) => !t.sprint_id));
-    const bySprint: Record<string, Task[]> = {};
+    const bySprint: Record<string, TaskWithAssignee[]> = {};
     for (const s of sprintList) {
       bySprint[s.id] = allTasks.filter((t) => t.sprint_id === s.id);
     }
@@ -169,6 +174,25 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
     showToast("สร้าง Sprint เรียบร้อยแล้ว");
   }, [fetchData, showToast]);
 
+  const handleCardClick = useCallback((task: TaskWithAssignee) => {
+    setModalTask(task);
+  }, []);
+
+  const handleModalClose = useCallback(() => {
+    setModalTask(null);
+    fetchData();
+  }, [fetchData]);
+
+  const handleModalSaved = useCallback(() => {
+    fetchData();
+    setModalTask(null);
+  }, [fetchData]);
+
+  const handleModalDeleted = useCallback(() => {
+    fetchData();
+    setModalTask(null);
+  }, [fetchData]);
+
   const handleStartSprint = async (sprintId: string) => {
     // ปิดสปรินต์ที่กำลัง active อยู่ใน Squad นี้ก่อน (ให้เหลือเพียง 1 active ต่อ Squad)
     await supabase
@@ -211,15 +235,16 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
       priority: "medium" as const,
     };
     const tempId = `temp-${Date.now()}`;
-    const tempTask: Task = {
+    const tempTask: TaskWithAssignee = {
       id: tempId,
       project_id: projectId,
       sprint_id: sprintId,
       title,
-      status: payload.status as Task["status"],
+      status: payload.status as TaskWithAssignee["status"],
       priority: "medium",
       description: null,
       assignee_id: null,
+      assignee: null,
     };
     if (sprintId === null) {
       setBacklogTasks((b) => [...b, tempTask]);
@@ -231,20 +256,26 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
     }
     setNewCardTitle("");
     setCreatingIn(null);
-    const { data, error } = await supabase.from("tasks").insert(payload).select("id").single();
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert(payload)
+      .select("*, assignee:users!assignee_id(id, name, avatar_url)")
+      .single();
     if (error) {
       if (sprintId === null) setBacklogTasks((b) => b.filter((t) => t.id !== tempId));
       else setTasksBySprint((s) => ({ ...s, [sprintId]: (s[sprintId] ?? []).filter((t) => t.id !== tempId) }));
       return;
     }
+    const createdTask = (data ?? { ...tempTask, id: tempId }) as TaskWithAssignee;
     if (sprintId === null) {
-      setBacklogTasks((b) => b.map((t) => (t.id === tempId ? { ...t, id: data.id } : t)));
+      setBacklogTasks((b) => b.map((t) => (t.id === tempId ? createdTask : t)));
     } else {
       setTasksBySprint((s) => ({
         ...s,
-        [sprintId]: (s[sprintId] ?? []).map((t) => (t.id === tempId ? { ...t, id: data.id } : t)),
+        [sprintId]: (s[sprintId] ?? []).map((t) => (t.id === tempId ? createdTask : t)),
       }));
     }
+    setModalTask(createdTask);
 
     // log create task
     try {
@@ -254,7 +285,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
         body: JSON.stringify({
           action: "CREATE_TASK",
           targetType: "task",
-          targetId: data.id,
+          targetId: createdTask.id,
           details: {
             project_id: projectId,
             sprint_id: sprintId,
@@ -320,7 +351,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
             <DroppableSprint id="backlog" isBacklog>
               <div className="space-y-2">
                 {backlogTasks.map((task) => (
-                  <DraggableTask key={task.id} task={task} />
+                  <DraggableTask key={task.id} task={task} onClick={handleCardClick} />
                 ))}
               </div>
             </DroppableSprint>
@@ -419,7 +450,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
               <DroppableSprint id={sprint.id} isBacklog={false}>
                 <div className="space-y-2">
                   {(tasksBySprint[sprint.id] ?? []).map((task) => (
-                    <DraggableTask key={task.id} task={task} />
+                    <DraggableTask key={task.id} task={task} onClick={handleCardClick} />
                   ))}
                 </div>
               </DroppableSprint>
@@ -465,6 +496,18 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {modalTask && (
+        <TaskModal
+          task={modalTask}
+          users={users}
+          sprintId={modalTask.sprint_id ?? ""}
+          projectId={projectId}
+          onClose={handleModalClose}
+          onSaved={handleModalSaved}
+          onDeleted={handleModalDeleted}
+        />
+      )}
     </div>
   );
 }

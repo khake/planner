@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils";
 
 type DraggableTaskProps = {
   task: Task;
+  onClick?: (task: Task) => void;
 };
 
-export function DraggableTask({ task }: DraggableTaskProps) {
+export function DraggableTask({ task, onClick }: DraggableTaskProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
   });
@@ -18,6 +19,7 @@ export function DraggableTask({ task }: DraggableTaskProps) {
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      onClick={() => onClick?.(task)}
       className={cn(
         "rounded-sm border border-[#E8E8E8] bg-card p-3 mb-2 cursor-grab active:cursor-grabbing shadow-[0_2px_8px_rgba(0,0,0,0.03)] transition-shadow hover:bg-accent",
         isDragging && "opacity-40 shadow-none"

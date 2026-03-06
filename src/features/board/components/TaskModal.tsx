@@ -2,14 +2,18 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
+import { AnimatePresence, motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import type { TaskStatus, TaskPriority } from "@/types";
 import type { TaskWithAssignee, Attachment } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RichTextEditor } from "@/components/rich-text-editor";
+import { RichTextViewer } from "@/components/rich-text-viewer";
+import { isRichTextEmpty, sanitizeRichTextHtml } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
-import { Paperclip, Download, Trash2, Image as ImageIcon, FileText, File, X, Maximize2, MessageSquare, Send } from "lucide-react";
+import { Paperclip, Download, Trash2, Image as ImageIcon, FileText, File, X, Maximize2, MessageCircle, Send } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TaskCommentWithUser } from "@/types";
 
@@ -130,9 +134,11 @@ export function TaskModal({
   const [newComment, setNewComment] = useState("");
   const [commentAuthorId, setCommentAuthorId] = useState<string>(task.assignee_id ?? users[0]?.id ?? "");
   const [currentUserName, setCurrentUserName] = useState<string>("ผู้ใช้");
+  const [loadingComments, setLoadingComments] = useState(true);
   const [sendingComment, setSendingComment] = useState(false);
-  const commentInputRef = useRef<HTMLTextAreaElement>(null);
+  const [isActivityOpen, setIsActivityOpen] = useState(false);
   const supabase = createClient();
+  const canSendComment = !isRichTextEmpty(newComment);
 
   const loadAttachments = useCallback(async () => {
     const { data } = await supabase
@@ -162,12 +168,14 @@ export function TaskModal({
   }, [supabase, users]);
 
   const loadComments = useCallback(async () => {
+    setLoadingComments(true);
     const { data } = await supabase
       .from("task_comments")
       .select("*, user:users!author_id(id, name, avatar_url)")
       .eq("task_id", task.id)
       .order("created_at", { ascending: false });
     setComments((data ?? []) as TaskCommentWithUser[]);
+    setLoadingComments(false);
   }, [task.id, supabase]);
 
   useEffect(() => {
@@ -176,8 +184,8 @@ export function TaskModal({
 
   const handleSendComment = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    const content = newComment.trim();
-    if (!content) return;
+    const content = sanitizeRichTextHtml(newComment);
+    if (isRichTextEmpty(content)) return;
     setSendingComment(true);
     const author = users.find((u) => u.id === commentAuthorId);
     const authorName = author?.name ?? currentUserName;
@@ -193,9 +201,6 @@ export function TaskModal({
     };
     setComments((prev) => [optimisticComment, ...prev]);
     setNewComment("");
-    if (commentInputRef.current) {
-      commentInputRef.current.style.height = "auto";
-    }
     const { error } = await supabase.from("task_comments").insert({
       task_id: task.id,
       author_name: authorName,
@@ -209,13 +214,6 @@ export function TaskModal({
     }
     await loadComments();
     setSendingComment(false);
-  };
-
-  const handleCommentInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setNewComment(e.target.value);
-    const ta = e.target;
-    ta.style.height = "auto";
-    ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`;
   };
 
   const handleUploadFiles = async (files: FileList | File[]) => {
@@ -271,11 +269,12 @@ export function TaskModal({
     e.preventDefault();
     if (!title.trim()) return;
     setSaving(true);
+    const safeDescription = sanitizeRichTextHtml(description);
     const { error } = await supabase
       .from("tasks")
       .update({
         title: title.trim(),
-        description: description.trim() || null,
+        description: isRichTextEmpty(safeDescription) ? null : safeDescription,
         status,
         priority,
         assignee_id: assigneeId || null,
@@ -300,16 +299,27 @@ export function TaskModal({
     >
       <div
         className={cn(
-          "w-[90vw] max-w-6xl h-[90vh] rounded-lg border bg-background shadow-xl flex flex-col overflow-hidden"
+          "relative h-[90vh] w-[90vw] rounded-xl border bg-background shadow-2xl flex flex-col overflow-hidden"
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex-1 overflow-y-auto p-6">
-          <h2 className="text-lg font-semibold mb-4">รายละเอียดงาน</h2>
-          <form id="task-form" onSubmit={handleSave} className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-6">
+        <div
+          className={cn(
+            "flex-1 overflow-y-auto bg-muted/20 p-5 md:p-6 transition-[filter,transform] duration-300 ease-out",
+            isActivityOpen && "pointer-events-none scale-[0.995] blur-[2px]"
+          )}
+          aria-hidden={isActivityOpen}
+        >
+          <div className="mb-4 rounded-xl border bg-card px-5 py-4 shadow-sm">
+            <h2 className="text-lg font-semibold">รายละเอียดงาน</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              แก้ไขรายละเอียดงาน ไฟล์แนบ และข้อมูลพื้นฐานของ task ได้จากส่วนนี้
+            </p>
+          </div>
+          <form id="task-form" onSubmit={handleSave} className="flex min-h-full flex-col gap-4">
+            <div className="grid flex-1 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,0.9fr)]">
               {/* ซ้าย 70%: Description / Requirement + Attachments */}
-              <div className="min-w-0 space-y-4">
+              <div className="flex min-h-[520px] min-w-0 flex-col space-y-4 rounded-xl border bg-card p-5 shadow-sm">
                 <div>
                   <Label htmlFor="modal-title">ชื่องาน</Label>
                   <Input
@@ -317,145 +327,153 @@ export function TaskModal({
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     required
+                    disabled={saving || deleting}
                     className="mt-1"
                   />
                 </div>
-                <div>
+                <div className="flex min-h-0 flex-1 flex-col">
                   <Label htmlFor="modal-desc">รายละเอียด / Requirement</Label>
-                  <textarea
-                    id="modal-desc"
+                  <RichTextEditor
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={12}
+                    onChange={setDescription}
                     placeholder="พิมพ์ requirement, หมายเหตุ หรือรายละเอียดงาน..."
-                    className={cn(
-                      "flex w-full min-h-[240px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 mt-1 resize-y"
-                    )}
+                    className="mt-1 flex-1"
+                    contentClassName="flex-1"
+                    fullHeight
+                    disabled={deleting}
+                    submitting={saving}
                   />
                 </div>
-                <div>
-            <Label className="flex items-center gap-1.5">
-              <Paperclip className="w-4 h-4" />
-              แนบไฟล์ (Attachments)
-            </Label>
-            <div
-              className={cn(
-                "mt-2 rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground transition-colors",
-                "hover:border-primary/50 hover:bg-muted/30"
-              )}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.add("border-primary", "bg-primary/5");
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.remove("border-primary", "bg-primary/5");
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.remove("border-primary", "bg-primary/5");
-                if (e.dataTransfer.files?.length) handleUploadFiles(e.dataTransfer.files);
-              }}
-            >
-              <p className="mb-2">ลากไฟล์มาวางที่นี่ หรือคลิกเลือกไฟล์ (รูปภาพ, PDF, Doc)</p>
-              <Input
-                type="file"
-                multiple
-                accept="image/*,.pdf,.doc,.docx"
-                disabled={uploading}
-                className="max-w-xs mx-auto cursor-pointer"
-                onChange={(e) => {
-                  if (e.target.files?.length) handleUploadFiles(e.target.files);
-                  e.target.value = "";
-                }}
-              />
-              {uploading && <p className="mt-2 text-xs">กำลังอัปโหลด...</p>}
-              {uploadError && (
-                <div className="mt-2 text-xs" role="alert">
-                  <p className="text-destructive">{uploadError}</p>
-                  <p className="text-muted-foreground mt-1">
-                    ถ้าเป็น 400 หรือ Bucket not found: สร้าง bucket ชื่อ &quot;task-artifacts&quot; ใน Supabase → Storage → New bucket (Public)
-                  </p>
-                </div>
-              )}
-            </div>
-            {attachments.length > 0 && (
-              <ul className="mt-3 space-y-2">
-                {attachments.map((att) => {
-                  const Icon = getAttachmentIcon(att);
-                  const isImage = att.file_type?.startsWith("image/");
-                  return (
-                    <li
-                      key={att.id}
-                      className="flex items-center gap-3 rounded-md border bg-muted/30 p-2"
-                    >
-                      {isImage ? (
-                        <button
-                          type="button"
-                          onClick={() => setPreviewImageUrl(att.file_url)}
-                          className="h-12 w-12 rounded object-cover shrink-0 overflow-hidden border border-border hover:ring-2 hover:ring-primary/50 focus:outline-none focus:ring-2 focus:ring-primary relative"
-                        >
-                          <Image
-                            src={att.file_url}
-                            alt={att.file_name}
-                            fill
-                            className="object-cover"
-                            sizes="3rem"
-                          />
-                        </button>
-                      ) : (
-                        <div className="h-12 w-12 rounded bg-muted flex items-center justify-center shrink-0 text-muted-foreground">
-                          <Icon className="w-6 h-6" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{att.file_name}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {att.file_type ?? "—"}
+                <div className="rounded-lg border bg-muted/20 p-4">
+                  <Label className="flex items-center gap-1.5">
+                    <Paperclip className="w-4 h-4" />
+                    แนบไฟล์ (Attachments)
+                  </Label>
+                  <div
+                    className={cn(
+                      "mt-2 rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground transition-colors",
+                      "hover:border-primary/50 hover:bg-muted/30"
+                    )}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.add("border-primary", "bg-primary/5");
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.remove("border-primary", "bg-primary/5");
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.remove("border-primary", "bg-primary/5");
+                      if (e.dataTransfer.files?.length) handleUploadFiles(e.dataTransfer.files);
+                    }}
+                  >
+                    <p className="mb-2">ลากไฟล์มาวางที่นี่ หรือคลิกเลือกไฟล์ (รูปภาพ, PDF, Doc)</p>
+                    <Input
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx"
+                      disabled={uploading}
+                      className="mx-auto max-w-xs cursor-pointer"
+                      onChange={(e) => {
+                        if (e.target.files?.length) handleUploadFiles(e.target.files);
+                        e.target.value = "";
+                      }}
+                    />
+                    {uploading && <p className="mt-2 text-xs">กำลังอัปโหลด...</p>}
+                    {uploadError && (
+                      <div className="mt-2 text-xs" role="alert">
+                        <p className="text-destructive">{uploadError}</p>
+                        <p className="mt-1 text-muted-foreground">
+                          ถ้าเป็น 400 หรือ Bucket not found: สร้าง bucket ชื่อ &quot;task-artifacts&quot; ใน Supabase → Storage → New bucket (Public)
                         </p>
                       </div>
-                      <a
-                        href={att.file_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="shrink-0 text-muted-foreground hover:text-foreground"
-                        title="Download"
-                      >
-                        <Download className="w-4 h-4" />
-                      </a>
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="shrink-0 text-destructive hover:text-destructive"
-                        onClick={() => handleDeleteAttachment(att)}
-                        title="ลบไฟล์"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-
-            {previewImageUrl && (
-              <ImagePreviewModal
-                imageUrl={previewImageUrl}
-                onClose={() => setPreviewImageUrl(null)}
-              />
-            )}
+                    )}
+                  </div>
+                  {attachments.length > 0 && (
+                    <ul className="mt-3 space-y-2">
+                      {attachments.map((att) => {
+                        const Icon = getAttachmentIcon(att);
+                        const isImage = att.file_type?.startsWith("image/");
+                        return (
+                          <li
+                            key={att.id}
+                            className="flex items-center gap-3 rounded-md border bg-background p-2"
+                          >
+                            {isImage ? (
+                              <button
+                                type="button"
+                                onClick={() => setPreviewImageUrl(att.file_url)}
+                                className="relative h-12 w-12 shrink-0 overflow-hidden rounded border border-border object-cover hover:ring-2 hover:ring-primary/50 focus:outline-none focus:ring-2 focus:ring-primary"
+                              >
+                                <Image
+                                  src={att.file_url}
+                                  alt={att.file_name}
+                                  fill
+                                  className="object-cover"
+                                  sizes="3rem"
+                                />
+                              </button>
+                            ) : (
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
+                                <Icon className="w-6 h-6" />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">{att.file_name}</p>
+                              <p className="truncate text-xs text-muted-foreground">
+                                {att.file_type ?? "—"}
+                              </p>
+                            </div>
+                            <a
+                              href={att.file_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="shrink-0 text-muted-foreground hover:text-foreground"
+                              title="Download"
+                            >
+                              <Download className="w-4 h-4" />
+                            </a>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="shrink-0 text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteAttachment(att)}
+                              title="ลบไฟล์"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                 </div>
+
+                {previewImageUrl && (
+                  <ImagePreviewModal
+                    imageUrl={previewImageUrl}
+                    onClose={() => setPreviewImageUrl(null)}
+                  />
+                )}
               </div>
 
               {/* ขวา 30%: Task Metadata */}
-              <div className="space-y-4 lg:border-l lg:pl-6">
+              <div className="space-y-4 rounded-xl border bg-card p-5 shadow-sm">
+                <div className="border-b pb-3">
+                  <h3 className="text-sm font-semibold">ข้อมูลสถานะ</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    ปรับสถานะ ความสำคัญ และผู้รับผิดชอบของงาน
+                  </p>
+                </div>
                 <div>
                   <Label htmlFor="modal-status">สถานะ</Label>
                   <select
                     id="modal-status"
                     value={status}
                     onChange={(e) => setStatus(e.target.value as TaskStatus)}
+                    disabled={saving || deleting}
                     className={cn(
                       "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     )}
@@ -473,6 +491,7 @@ export function TaskModal({
                     id="modal-priority"
                     value={priority}
                     onChange={(e) => setPriority(e.target.value as TaskPriority)}
+                    disabled={saving || deleting}
                     className={cn(
                       "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     )}
@@ -490,6 +509,7 @@ export function TaskModal({
                     id="modal-assignee"
                     value={assigneeId}
                     onChange={(e) => setAssigneeId(e.target.value)}
+                    disabled={saving || deleting}
                     className={cn(
                       "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     )}
@@ -525,97 +545,172 @@ export function TaskModal({
         </form>
         </div>
 
-        {/* Activity / Comments (Feed เรียงใหม่ไปเก่า) */}
-        <div className="border-t bg-muted/20 flex flex-col min-h-0 shrink-0">
-          <div className="flex items-center gap-2 px-4 py-2 border-b bg-background">
-            <MessageSquare className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Activity / Comments</span>
-          </div>
-          <div className="flex-1 min-h-[200px] max-h-[300px] overflow-y-auto p-3 space-y-3">
-            {comments.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                ยังไม่มีคอมเมนต์ — ส่งคำถาม คำตอบ หรืออัปเดตสถานะการทำงานได้ที่นี่
-              </p>
-            ) : (
-              comments.map((c) => {
-                const displayName = c.user?.name ?? c.author_name;
-                const avatarUrl = c.user?.avatar_url;
-                const initial = displayName.charAt(0).toUpperCase();
-                return (
-                  <div
-                    key={c.id}
-                    className="flex gap-3 rounded-lg bg-background border p-3 text-left"
+        <AnimatePresence>
+          {isActivityOpen && (
+            <>
+              <motion.button
+                type="button"
+                className="absolute inset-0 z-30 bg-background/25 backdrop-blur-[3px]"
+                onClick={() => setIsActivityOpen(false)}
+                aria-label="ปิดแผง Activity & Comments"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              />
+              <motion.div
+                className="absolute bottom-24 right-5 z-40 flex h-[72%] w-[min(460px,calc(100%-2.5rem))] flex-col overflow-hidden rounded-2xl border bg-card shadow-[0_24px_60px_rgba(0,0,0,0.2)] ring-1 ring-black/5"
+                initial={{ opacity: 0, y: 32, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 24, scale: 0.97 }}
+                transition={{ type: "spring", stiffness: 260, damping: 24 }}
+              >
+                <div className="flex items-center justify-between gap-3 border-b bg-muted/35 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-semibold">Activity & Comments</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      พื้นที่พูดคุย อัปเดตงาน และเก็บ context ของ task
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground"
+                    onClick={() => setIsActivityOpen(false)}
+                    title="ปิด"
                   >
-                    <div className="shrink-0 relative h-9 w-9">
-                      {avatarUrl ? (
-                        <Image
-                          src={avatarUrl}
-                          alt=""
-                          width={36}
-                          height={36}
-                          className="rounded-full object-cover h-9 w-9"
-                        />
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                    <div className="space-y-3">
+                      {loadingComments ? (
+                        <p className="py-6 text-center text-sm text-muted-foreground">
+                          กำลังโหลดคอมเมนต์...
+                        </p>
+                      ) : comments.length === 0 ? (
+                        <p className="py-6 text-center text-sm text-muted-foreground">
+                          ยังไม่มีคอมเมนต์ — ส่งคำถาม คำตอบ หรืออัปเดตสถานะการทำงานได้ที่นี่
+                        </p>
                       ) : (
-                        <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
-                          {initial}
-                        </div>
+                        comments.map((c) => {
+                          const displayName = c.user?.name ?? c.author_name;
+                          const avatarUrl = c.user?.avatar_url;
+                          const initial = displayName.charAt(0).toUpperCase();
+                          return (
+                            <div
+                              key={c.id}
+                              className="flex gap-3 rounded-lg border bg-background p-3 text-left"
+                            >
+                              <div className="relative h-9 w-9 shrink-0">
+                                {avatarUrl ? (
+                                  <Image
+                                    src={avatarUrl}
+                                    alt=""
+                                    width={36}
+                                    height={36}
+                                    className="h-9 w-9 rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20 text-sm font-medium text-primary">
+                                    {initial}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <span className="text-sm font-medium">{displayName}</span>
+                                  <time
+                                    className="text-xs text-muted-foreground tabular-nums"
+                                    dateTime={c.created_at}
+                                  >
+                                    {c.created_at
+                                      ? new Date(c.created_at).toLocaleString("th-TH", {
+                                          day: "2-digit",
+                                          month: "short",
+                                          year: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })
+                                      : ""}
+                                  </time>
+                                </div>
+                                <RichTextViewer
+                                  html={c.content}
+                                  className="mt-1 text-sm"
+                                />
+                              </div>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span className="text-sm font-medium">{displayName}</span>
-                        <time
-                          className="text-xs text-muted-foreground tabular-nums"
-                          dateTime={c.created_at}
-                        >
-                          {c.created_at
-                            ? new Date(c.created_at).toLocaleString("th-TH", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
-                            : ""}
-                        </time>
-                      </div>
-                      <p className="text-sm text-foreground whitespace-pre-wrap break-words mt-0.5">
-                        {c.content}
+                  </div>
+
+                  <form
+                    onSubmit={handleSendComment}
+                    className="flex min-h-0 flex-col gap-3 border-t bg-muted/20 p-4"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">เขียนคอมเมนต์ใหม่</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        ใช้ toolbar แบบย่อสำหรับคุยกับทีมใน task นี้
                       </p>
                     </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-          <form onSubmit={handleSendComment} className="p-3 border-t bg-background flex gap-2 items-end">
-            <div className="flex items-center gap-2 shrink-0 text-xs text-muted-foreground">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary font-medium">
-                {currentUserName.charAt(0).toUpperCase()}
-              </span>
-              <span className="max-w-[120px] truncate">{currentUserName}</span>
-            </div>
-            <textarea
-              ref={commentInputRef}
-              value={newComment}
-              onChange={handleCommentInputChange}
-              placeholder="พิมพ์คอมเมนต์... (Enter ส่ง, Shift+Enter ขึ้นบรรทัดใหม่)"
-              rows={1}
-              className={cn(
-                "flex-1 min-w-0 min-h-[40px] max-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none overflow-y-auto"
-              )}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendComment();
-                }
-              }}
-            />
-            <Button type="submit" size="icon" disabled={sendingComment || !newComment.trim()} title="ส่ง">
-              <Send className="w-4 h-4" />
-            </Button>
-          </form>
-        </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary font-medium">
+                        {currentUserName.charAt(0).toUpperCase()}
+                      </span>
+                      <span className="max-w-[160px] truncate">{currentUserName}</span>
+                    </div>
+                    <RichTextEditor
+                      value={newComment}
+                      onChange={setNewComment}
+                      placeholder="พิมพ์คอมเมนต์... รองรับตัวหนา ลิสต์ ลิงก์ และ code block"
+                      className="min-h-0 min-w-0 bg-background"
+                      compact
+                      disabled={saving || loadingComments}
+                      submitting={sendingComment}
+                      onModEnter={() => void handleSendComment()}
+                    />
+                    <div className="flex justify-end">
+                      <Button
+                        type="submit"
+                        disabled={sendingComment || !canSendComment}
+                        title="ส่ง"
+                        className="min-w-24"
+                      >
+                        <Send className="w-4 h-4" />
+                        ส่ง
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        <motion.button
+          type="button"
+          className="absolute bottom-5 right-5 z-50 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#EE4D2D] text-white shadow-[0_16px_30px_rgba(238,77,45,0.38)]"
+          onClick={() => setIsActivityOpen(true)}
+          whileHover={{ scale: 1.08, y: -2 }}
+          whileTap={{ scale: 0.95 }}
+          transition={{ type: "spring", stiffness: 320, damping: 18 }}
+          aria-label={`เปิด Activity & Comments (${comments.length})`}
+          title="Activity & Comments"
+        >
+          <MessageCircle className="h-6 w-6" />
+          {comments.length > 0 && (
+            <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-background bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
+              {comments.length > 99 ? "99+" : comments.length}
+            </span>
+          )}
+        </motion.button>
       </div>
     </div>
   );
