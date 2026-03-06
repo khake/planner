@@ -24,15 +24,8 @@ export async function GET(request: NextRequest) {
     }
   );
 
-  // ออกจากระบบ Supabase และลบคุกกี้ auth ของแอปเอง
+  // ออกจากระบบ Supabase เท่านั้น
   await supabase.auth.signOut();
-
-  res.cookies.set("planner_auth", "", {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-  });
 
   return res;
 }
