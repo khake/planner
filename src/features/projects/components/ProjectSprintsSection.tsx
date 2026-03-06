@@ -58,7 +58,7 @@ export function ProjectSprintsSection({
           {sprints.map((s) => (
             <li
               key={s.id}
-              className="rounded-lg border bg-card p-3 text-card-foreground flex flex-wrap items-center justify-between gap-2"
+              className="card p-3 flex flex-wrap items-center justify-between gap-2"
             >
               <div>
                 <span className="font-medium">{s.name}</span>

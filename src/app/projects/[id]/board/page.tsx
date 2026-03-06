@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
-import { KanbanBoard } from "@/features/board/components";
+import { DynamicKanbanBoard } from "@/features/board/components";
 import { Button } from "@/components/ui/button";
 
 export default async function BoardPage({
@@ -31,14 +31,39 @@ export default async function BoardPage({
 
   return (
     <main className="container mx-auto py-8 px-4">
-      <h1 className="text-2xl font-bold mb-6">
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <Link href="/projects">
+            <Button variant="outline">← Squads</Button>
+          </Link>
+          <Link href={`/projects/${projectId}/backlog`}>
+            <Button variant="outline">Backlog</Button>
+          </Link>
+          <Link href={`/projects/${projectId}/board`}>
+            <Button>Active Sprint</Button>
+          </Link>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/profile">
+            <Button variant="outline" size="sm">
+              โปรไฟล์
+            </Button>
+          </Link>
+          <Link href="/logout">
+            <Button variant="ghost" size="sm">
+              Logout
+            </Button>
+          </Link>
+        </div>
+      </div>
+      <h1 className="text-2xl font-bold mb-4">
         Active Sprint Board — {project.name}
       </h1>
 
       {!activeSprint ? (
         <div className="rounded-lg border bg-muted/30 p-6 text-center">
           <p className="text-muted-foreground mb-4">
-            ไม่มี Active Sprint ในโปรเจกต์นี้
+            ไม่มี Active Sprint ใน Squad นี้
           </p>
           <p className="text-sm text-muted-foreground mb-4">
             ไปที่ Backlog สร้าง Sprint แล้วกด Start Sprint
@@ -48,7 +73,7 @@ export default async function BoardPage({
           </Link>
         </div>
       ) : (
-        <KanbanBoard
+        <DynamicKanbanBoard
           projectId={project.id}
           projectName={project.name}
           sprintId={activeSprint.id}

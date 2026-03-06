@@ -35,16 +35,30 @@ export default async function ProjectDetailPage({
 
   return (
     <main className="container mx-auto py-8 px-4">
-      <div className="flex items-center gap-4 mb-6">
-        <Link href="/projects">
-          <Button variant="outline">← โปรเจกต์</Button>
-        </Link>
-        <Link href={`/projects/${id}/backlog`}>
-          <Button variant="outline">Backlog</Button>
-        </Link>
-        <Link href={`/projects/${id}/board`}>
-          <Button>Active Sprint</Button>
-        </Link>
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <Link href="/projects">
+            <Button variant="outline">← Squads</Button>
+          </Link>
+          <Link href={`/projects/${id}/backlog`}>
+            <Button variant="outline">Backlog</Button>
+          </Link>
+          <Link href={`/projects/${id}/board`}>
+            <Button>Active Sprint</Button>
+          </Link>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/profile">
+            <Button variant="outline" size="sm">
+              โปรไฟล์
+            </Button>
+          </Link>
+          <Link href="/logout">
+            <Button variant="ghost" size="sm">
+              Logout
+            </Button>
+          </Link>
+        </div>
       </div>
       <h1 className="text-2xl font-bold mb-2">{project.name}</h1>
       {project.description && (

@@ -23,7 +23,7 @@ import { ExternalLink } from "lucide-react";
 import { DraggableTask } from "./DraggableTask";
 import { DroppableSprint } from "./DroppableSprint";
 
-type BacklogBoardProps = {
+export type BacklogBoardProps = {
   projectId: string;
   projectName: string;
   openCreateSprint?: boolean;
@@ -140,6 +140,27 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
     if (error) {
       setBacklogTasks(prevBacklog);
       setTasksBySprint(prevBySprint);
+    } else {
+      // log move / status change
+      try {
+        await fetch("/api/activity-log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "MOVE_TASK",
+            targetType: "task",
+            targetId: taskId,
+            details: {
+              from_sprint_id: fromSprintId,
+              to_sprint_id: newSprintId,
+              old_status: task.status,
+              new_status: newStatus,
+            },
+          }),
+        });
+      } catch {
+        // ignore log errors
+      }
     }
   };
 
@@ -149,7 +170,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
   }, [fetchData, showToast]);
 
   const handleStartSprint = async (sprintId: string) => {
-    // ปิดสปรินต์ที่กำลัง active อยู่ในโปรเจกต์นี้ก่อน (ให้เหลือเพียง 1 active ต่อโปรเจกต์)
+    // ปิดสปรินต์ที่กำลัง active อยู่ใน Squad นี้ก่อน (ให้เหลือเพียง 1 active ต่อ Squad)
     await supabase
       .from("sprints")
       .update({ status: "completed", actual_end_date: new Date().toISOString() })
@@ -160,7 +181,23 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
       .from("sprints")
       .update({ status: "active" })
       .eq("id", sprintId);
-    if (!error) await fetchData();
+    if (!error) {
+      try {
+        await fetch("/api/activity-log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "START_SPRINT",
+            targetType: "sprint",
+            targetId: sprintId,
+            details: { from: "backlog" },
+          }),
+        });
+      } catch {
+        // ignore
+      }
+      await fetchData();
+    }
   };
 
   const handleCreateCard = async (sprintId: null | string) => {
@@ -179,7 +216,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
       project_id: projectId,
       sprint_id: sprintId,
       title,
-      status: payload.status,
+      status: payload.status as Task["status"],
       priority: "medium",
       description: null,
       assignee_id: null,
@@ -208,6 +245,27 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
         [sprintId]: (s[sprintId] ?? []).map((t) => (t.id === tempId ? { ...t, id: data.id } : t)),
       }));
     }
+
+    // log create task
+    try {
+      await fetch("/api/activity-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE_TASK",
+          targetType: "task",
+          targetId: data.id,
+          details: {
+            project_id: projectId,
+            sprint_id: sprintId,
+            title,
+            status: payload.status,
+          },
+        }),
+      });
+    } catch {
+      // ignore
+    }
   };
 
   if (loading) {
@@ -216,12 +274,28 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={() => setShowCreateSprint(true)}>Create Sprint</Button>
-        <Link href={`/projects/${projectId}`}>
-          <Button variant="outline">← กลับไปโปรเจกต์</Button>
-        </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link href={`/projects/${projectId}`}>
+            <Button variant="outline">← Squads</Button>
+          </Link>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setShowCreateSprint(true)}>Create Sprint</Button>
+          <Link href="/profile">
+            <Button variant="outline" size="sm">
+              โปรไฟล์
+            </Button>
+          </Link>
+          <Link href="/logout">
+            <Button variant="ghost" size="sm">
+              Logout
+            </Button>
+          </Link>
+        </div>
       </div>
+
+      <h1 className="text-2xl font-bold">Backlog — {projectName}</h1>
 
       <CreateSprintModal
         open={showCreateSprint}

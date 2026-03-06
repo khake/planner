@@ -19,7 +19,7 @@ export function DraggableTask({ task }: DraggableTaskProps) {
       {...listeners}
       {...attributes}
       className={cn(
-        "rounded-md border bg-background p-3 mb-2 cursor-grab active:cursor-grabbing shadow-sm transition-shadow",
+        "rounded-sm border border-[#E8E8E8] bg-card p-3 mb-2 cursor-grab active:cursor-grabbing shadow-[0_2px_8px_rgba(0,0,0,0.03)] transition-shadow hover:bg-accent",
         isDragging && "opacity-40 shadow-none"
       )}
     >

@@ -9,7 +9,7 @@ export default function HomePage() {
         Next.js 15 · Tailwind CSS · Shadcn UI · Supabase
       </p>
       <Link href="/projects">
-        <Button>ไปที่โปรเจกต์</Button>
+        <Button>ไปที่ Squads</Button>
       </Link>
     </main>
   );

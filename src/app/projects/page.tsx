@@ -6,11 +6,25 @@ export default function ProjectsPage() {
   return (
     <main className="container mx-auto py-8 px-4">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">โปรเจกต์</h1>
-        <Link href="/">
-          <Button variant="outline">กลับหน้าแรก</Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/">
+            <Button variant="outline">← หน้าแรก</Button>
+          </Link>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/profile">
+            <Button variant="outline" size="sm">
+              โปรไฟล์
+            </Button>
+          </Link>
+          <Link href="/logout">
+            <Button variant="ghost" size="sm">
+              Logout
+            </Button>
+          </Link>
+        </div>
       </div>
+      <h1 className="text-2xl font-bold mb-4">Squads</h1>
       <ProjectList />
     </main>
   );

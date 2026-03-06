@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -16,6 +15,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { TaskStatus, TaskWithAssignee } from "@/types";
 import type { Sprint } from "@/types";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 import { KanbanLane } from "./KanbanLane";
 import { TaskCard } from "./TaskCard";
@@ -51,7 +51,7 @@ const STATUS_LABELS: Record<string, string> = {
   completed: "Completed",
 };
 
-type KanbanBoardProps = {
+export type KanbanBoardProps = {
   projectId: string;
   projectName: string;
   sprintId: string;
@@ -65,7 +65,6 @@ type KanbanBoardProps = {
 
 export function KanbanBoard({
   projectId,
-  projectName,
   sprintId,
   sprintName,
   sprintStartDate,
@@ -177,7 +176,23 @@ export function KanbanBoard({
       .from("tasks")
       .update({ status: newStatus })
       .eq("id", taskId);
-    if (!error) await fetchData();
+    if (!error) {
+      try {
+        await fetch("/api/activity-log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "UPDATE_STATUS",
+            targetType: "task",
+            targetId: taskId,
+            details: { old_status: task.status, new_status: newStatus, sprint_id: sprintId },
+          }),
+        });
+      } catch {
+        // ignore
+      }
+      await fetchData();
+    }
   };
 
   const handleCardClick = (task: TaskWithAssignee) => {
@@ -237,7 +252,26 @@ export function KanbanBoard({
 
     setCompleting(false);
     setShowCompleteSprintModal(false);
-    if (!error) router.push(`/projects/${projectId}`);
+    if (!error) {
+      try {
+        await fetch("/api/activity-log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "COMPLETE_SPRINT",
+            targetType: "sprint",
+            targetId: sprintId,
+            details: {
+              moved_incomplete_to: incompleteDestination,
+              incomplete_task_count: incompleteTasks.length,
+            },
+          }),
+        });
+      } catch {
+        // ignore
+      }
+      router.push(`/projects/${projectId}`);
+    }
   };
 
   const tasksByStatus = (status: TaskStatus) =>
@@ -255,14 +289,6 @@ export function KanbanBoard({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-          <div className="flex items-center gap-3">
-            <Link href={`/projects/${projectId}`}>
-              <Button variant="outline">← โปรเจกต์</Button>
-            </Link>
-            <Link href={`/projects/${projectId}/backlog`}>
-              <Button variant="outline">Backlog</Button>
-            </Link>
-          </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="font-semibold">{sprintName}</span>
             {durationStr && (
@@ -333,7 +359,7 @@ export function KanbanBoard({
           ))}
         </div>
 
-        <DragOverlay>
+        <DragOverlay dropAnimation={null}>
           {activeTask ? (
             <div className="rounded-lg border bg-background shadow-lg opacity-95 cursor-grabbing w-64 overflow-hidden">
               <TaskCard
@@ -359,70 +385,70 @@ export function KanbanBoard({
         />
       )}
 
-      {showCompleteSprintModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-lg border bg-background p-6 shadow-lg">
-            <h3 className="text-lg font-semibold mb-2">Complete Sprint</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              งานที่ยังไม่เสร็จ (Incomplete Tasks) จะย้ายไปที่ไหน?
-            </p>
-            <div className="space-y-3 mb-6">
+      <Modal
+        open={showCompleteSprintModal}
+        onClose={() => setShowCompleteSprintModal(false)}
+        size="md"
+      >
+        <h3 className="text-lg font-semibold mb-2">Complete Sprint</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          งานที่ยังไม่เสร็จ (Incomplete Tasks) จะย้ายไปที่ไหน?
+        </p>
+        <div className="space-y-3 mb-6">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="incomplete-dest"
+              checked={incompleteDestination === "backlog"}
+              onChange={() => setIncompleteDestination("backlog")}
+              className="rounded-full border-input"
+            />
+            <span className="text-sm">ย้ายกลับไปที่ Backlog</span>
+          </label>
+          {plannedSprints.length > 0 && (
+            <>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
                   name="incomplete-dest"
-                  checked={incompleteDestination === "backlog"}
-                  onChange={() => setIncompleteDestination("backlog")}
+                  checked={incompleteDestination !== "backlog"}
+                  onChange={() => setIncompleteDestination(plannedSprints[0].id)}
                   className="rounded-full border-input"
                 />
-                <span className="text-sm">ย้ายกลับไปที่ Backlog</span>
+                <span className="text-sm">ย้ายไป Next Sprint</span>
               </label>
-              {plannedSprints.length > 0 && (
-                <>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="incomplete-dest"
-                      checked={incompleteDestination !== "backlog"}
-                      onChange={() => setIncompleteDestination(plannedSprints[0].id)}
-                      className="rounded-full border-input"
-                    />
-                    <span className="text-sm">ย้ายไป Next Sprint</span>
-                  </label>
-                  {plannedSprints.length > 1 && (
-                    <select
-                      value={incompleteDestination === "backlog" ? plannedSprints[0].id : incompleteDestination}
-                      onChange={(e) => setIncompleteDestination(e.target.value)}
-                      className="ml-6 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      disabled={incompleteDestination === "backlog"}
-                    >
-                      {plannedSprints.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                          {s.start_date && s.end_date ? ` (${s.start_date} – ${s.end_date})` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </>
+              {plannedSprints.length > 1 && (
+                <select
+                  value={incompleteDestination === "backlog" ? plannedSprints[0].id : incompleteDestination}
+                  onChange={(e) => setIncompleteDestination(e.target.value)}
+                  className="ml-6 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  disabled={incompleteDestination === "backlog"}
+                >
+                  {plannedSprints.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                      {s.start_date && s.end_date ? ` (${s.start_date} – ${s.end_date})` : ""}
+                    </option>
+                  ))}
+                </select>
               )}
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowCompleteSprintModal(false)}
-                disabled={completing}
-              >
-                ยกเลิก
-              </Button>
-              <Button onClick={handleCompleteSprint} disabled={completing}>
-                {completing ? "กำลังปิดสปรินท์..." : "ยืนยัน Complete Sprint"}
-              </Button>
-            </div>
-          </div>
+            </>
+          )}
         </div>
-      )}
+        <div className="flex gap-2 justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowCompleteSprintModal(false)}
+            disabled={completing}
+          >
+            ยกเลิก
+          </Button>
+          <Button onClick={handleCompleteSprint} disabled={completing}>
+            {completing ? "กำลังปิดสปรินท์..." : "ยืนยัน Complete Sprint"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
