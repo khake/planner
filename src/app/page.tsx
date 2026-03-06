@@ -1,15 +1,25 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+
+  // ถ้าล็อกอินอยู่แล้วให้ไปหน้า /projects เลย
+  if (data.user) {
+    redirect("/projects");
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <h1 className="text-3xl font-bold mb-2">Jira Clone</h1>
+      <h1 className="text-3xl font-bold mb-2">Project planner</h1>
       <p className="text-muted-foreground mb-6 text-center max-w-md">
         Next.js 15 · Tailwind CSS · Shadcn UI · Supabase
       </p>
       <Link href="/projects">
-        <Button>ไปที่ Squads</Button>
+        <Button>ไปที่โปรเจค</Button>
       </Link>
     </main>
   );
