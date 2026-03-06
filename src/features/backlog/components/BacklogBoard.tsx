@@ -135,6 +135,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
         to: string;
         oldStatus: TaskWithAssignee["status"];
         newStatus: TaskWithAssignee["status"];
+        ticket_key?: string;
       }
     ) => {
       const uniqueContainers = Array.from(new Set(containers));
@@ -175,6 +176,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
                 to_sprint_id: movedTask.to === "backlog" ? null : movedTask.to,
                 old_status: movedTask.oldStatus,
                 new_status: movedTask.newStatus,
+                ticket_key: movedTask.ticket_key ?? undefined,
               },
             }),
           });
@@ -372,6 +374,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
           from: draggedTask.sprint_id ?? "backlog",
           to: finalContainer,
           oldStatus: draggedTask.status,
+          ticket_key: draggedTask.ticket_key,
           newStatus: currentTask?.status ?? draggedTask.status,
         }
       );
@@ -473,6 +476,8 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
       board_position: payload.board_position,
       assignee_id: null,
       assignee: null,
+      ticket_number: 0,
+      ticket_key: "",
     };
     if (sprintId === null) {
       setBacklogTasks((b) => [...b, tempTask]);
@@ -522,6 +527,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
             sprint_id: sprintId,
             title,
             status: payload.status,
+            ticket_key: createdTask.ticket_key ?? undefined,
           },
         }),
       });

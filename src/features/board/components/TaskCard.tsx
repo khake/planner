@@ -70,7 +70,7 @@ export function TaskCard({
         </div>
       )}
       <div className={cn("p-3", hasCover && "pt-2")}>
-        <div className="mb-2 flex items-center gap-2">
+        <div className="mb-2 flex items-center gap-2 flex-wrap">
           <span
             className={cn(
               "inline-flex h-7 w-7 items-center justify-center rounded-md",
@@ -88,6 +88,9 @@ export function TaskCard({
           >
             {typeMeta.label}
           </span>
+          {task.ticket_key && (
+            <span className="text-[11px] font-mono text-muted-foreground">{task.ticket_key}</span>
+          )}
         </div>
         <p className="font-medium text-sm">{task.title}</p>
         {task.tags.length > 0 && (

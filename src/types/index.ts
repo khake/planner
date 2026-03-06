@@ -27,6 +27,8 @@ export interface Project {
   id: string;
   name: string;
   description: string | null;
+  project_key: string;
+  last_ticket_number: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -58,6 +60,8 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   assignee_id: string | null;
+  ticket_number: number;
+  ticket_key: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -103,13 +107,21 @@ export interface ProjectWithSprints extends Project {
 export type UserInsert = Omit<User, "id"> & Partial<Pick<User, "id">>;
 export type UserUpdate = Partial<Omit<User, "id">>;
 
-export type ProjectInsert = Omit<Project, "id"> & Partial<Pick<Project, "id">>;
+export type ProjectInsert = Omit<
+  Project,
+  "id" | "project_key" | "last_ticket_number"
+> &
+  Partial<Pick<Project, "id" | "project_key" | "last_ticket_number">>;
 export type ProjectUpdate = Partial<Omit<Project, "id">>;
 
 export type SprintInsert = Omit<Sprint, "id"> & Partial<Pick<Sprint, "id">>;
 export type SprintUpdate = Partial<Omit<Sprint, "id">>;
 
-export type TaskInsert = Omit<Task, "id"> & Partial<Pick<Task, "id">>;
+export type TaskInsert = Omit<
+  Task,
+  "id" | "ticket_number" | "ticket_key"
+> &
+  Partial<Pick<Task, "id" | "ticket_number" | "ticket_key">>;
 export type TaskUpdate = Partial<Omit<Task, "id">>;
 
 export type AttachmentInsert = Omit<Attachment, "id" | "created_at"> &

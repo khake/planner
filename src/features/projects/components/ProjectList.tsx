@@ -39,10 +39,14 @@ export function ProjectList() {
     if (!newName.trim()) return;
     setCreating(true);
     const supabase = createClient();
-    const { error } = await supabase.from("projects").insert({
-      name: newName.trim(),
-      description: newDescription.trim() || null,
-    });
+    const { data, error } = await supabase
+      .from("projects")
+      .insert({
+        name: newName.trim(),
+        description: newDescription.trim() || null,
+      })
+      .select("*")
+      .single();
     setCreating(false);
     if (error) {
       console.error(error);
@@ -51,7 +55,8 @@ export function ProjectList() {
     setShowCreateModal(false);
     setNewName("");
     setNewDescription("");
-    await fetchProjects();
+    if (data) setProjects((prev) => [data as Project, ...prev]);
+    else await fetchProjects();
   };
 
   if (loading) {

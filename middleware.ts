@@ -29,7 +29,9 @@ export async function middleware(request: NextRequest) {
     pathname === "/projects" ||
     pathname.startsWith("/projects/") ||
     pathname === "/profile" ||
-    pathname.startsWith("/profile");
+    pathname.startsWith("/profile") ||
+    pathname === "/tickets" ||
+    pathname.startsWith("/tickets/");
 
   if (!isProtected) {
     return NextResponse.next();
@@ -76,6 +78,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   // ต้อง run middleware ทุก path ที่อาจเป็น protected
-  matcher: ["/", "/projects", "/projects/(.*)", "/profile", "/profile/(.*)"],
+  matcher: ["/", "/projects", "/projects/(.*)", "/profile", "/profile/(.*)", "/tickets", "/tickets/(.*)"],
 };
 
