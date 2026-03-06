@@ -71,7 +71,7 @@
 @layer components {
   /* การ์ดใช้ร่วมกัน: โปรเจกต์, สปรินต์, งาน (ลดการซ้ำของ border/shadow) */
   .card {
-    @apply rounded-sm border border-border bg-card text-card-foreground shadow-[0_2px_8px_rgba(0,0,0,0.03)];
+    @apply rounded-md border border-border bg-card text-card-foreground;
   }
 
   .rich-text-content {

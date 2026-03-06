@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { DynamicKanbanBoard } from "@/features/board/components";
 import { Button } from "@/components/ui/button";
-import { CurrentUserTag } from "@/components/current-user-tag";
+import { AppShell } from "@/components/app-shell";
+import { AppUserActions } from "@/components/app-user-actions";
 
 export default async function SprintBoardPage({
   params,
@@ -41,47 +42,48 @@ export default async function SprintBoardPage({
     : `${sprint.name} — ${project.name}`;
 
   return (
-    <main className="container mx-auto py-8 px-4">
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-4">
-          <Link href="/projects">
-            <Button variant="outline">← Squads</Button>
-          </Link>
-          <Link href={`/projects/${projectId}/backlog`}>
-            <Button variant="outline">Backlog</Button>
-          </Link>
-          <Link href={`/projects/${projectId}/board`}>
-            <Button>Active Sprint</Button>
-          </Link>
-        </div>
-        <div className="flex items-center gap-2">
-          <CurrentUserTag />
-          <Link href="/profile">
-            <Button variant="outline" size="sm">
-              โปรไฟล์
-            </Button>
-          </Link>
-          <Link href="/logout">
-            <Button variant="ghost" size="sm">
-              Logout
-            </Button>
-          </Link>
-        </div>
+    <AppShell
+      activeNav="projects"
+      breadcrumbs={[
+        { label: "Squads", href: "/projects" },
+        { label: project.name, href: `/projects/${project.id}` },
+        { label: sprint.name },
+      ]}
+      topbarRight={<AppUserActions />}
+    >
+      <div className="space-y-6">
+        <section className="rounded-xl border border-[#E8E8E8] bg-white px-6 py-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-[#EE4D2D]">Sprint Board</p>
+              <h1 className="mt-1 text-3xl font-semibold text-[#222222]">{pageTitle}</h1>
+              {sprint.goal && (
+                <p className="mt-2 max-w-2xl text-sm text-[#666666]">{sprint.goal}</p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href={`/projects/${projectId}/backlog`}>
+                <Button variant="brandOutline">Backlog</Button>
+              </Link>
+              <Link href={`/projects/${projectId}/board`}>
+                <Button>Active Sprint</Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <DynamicKanbanBoard
+          projectId={project.id}
+          projectName={project.name}
+          sprintId={sprint.id}
+          sprintName={sprint.name}
+          sprintStartDate={sprint.start_date ?? undefined}
+          sprintEndDate={sprint.end_date ?? undefined}
+          sprintStatus={sprint.status}
+          sprintGoal={sprint.goal ?? undefined}
+          isActiveSprint={sprint.status === "active"}
+        />
       </div>
-      <h1 className="text-2xl font-bold mb-4">
-        {pageTitle}
-      </h1>
-      <DynamicKanbanBoard
-        projectId={project.id}
-        projectName={project.name}
-        sprintId={sprint.id}
-        sprintName={sprint.name}
-        sprintStartDate={sprint.start_date ?? undefined}
-        sprintEndDate={sprint.end_date ?? undefined}
-        sprintStatus={sprint.status}
-        sprintGoal={sprint.goal ?? undefined}
-        isActiveSprint={sprint.status === "active"}
-      />
-    </main>
+    </AppShell>
   );
 }

@@ -3,7 +3,8 @@ import { redirect, notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { ProjectSprintsSection } from "@/features/projects/components/ProjectSprintsSection";
-import { CurrentUserTag } from "@/components/current-user-tag";
+import { AppShell } from "@/components/app-shell";
+import { AppUserActions } from "@/components/app-user-actions";
 
 export default async function ProjectDetailPage({
   params,
@@ -41,38 +42,41 @@ export default async function ProjectDetailPage({
   }));
 
   return (
-    <main className="container mx-auto py-8 px-4">
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-4">
-          <Link href="/projects">
-            <Button variant="outline">← Squads</Button>
-          </Link>
-          <Link href={`/projects/${id}/backlog`}>
-            <Button variant="outline">Backlog</Button>
-          </Link>
-          <Link href={`/projects/${id}/board`}>
-            <Button>Active Sprint</Button>
-          </Link>
-        </div>
-        <div className="flex items-center gap-2">
-          <CurrentUserTag />
-          <Link href="/profile">
-            <Button variant="outline" size="sm">
-              โปรไฟล์
-            </Button>
-          </Link>
-          <Link href="/logout">
-            <Button variant="ghost" size="sm">
-              Logout
-            </Button>
-          </Link>
-        </div>
+    <AppShell
+      activeNav="projects"
+      breadcrumbs={[
+        { label: "Squads", href: "/projects" },
+        { label: project.name },
+      ]}
+      topbarRight={<AppUserActions />}
+    >
+      <div className="space-y-6">
+        <section className="rounded-xl border border-[#E8E8E8] bg-white px-6 py-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-3xl">
+              <p className="text-sm font-medium text-[#EE4D2D]">Project Workspace</p>
+              <h1 className="mt-1 text-3xl font-semibold text-[#222222]">{project.name}</h1>
+              {project.description && (
+                <p className="mt-2 text-sm leading-6 text-[#666666]">
+                  {project.description}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href={`/projects/${id}/backlog`}>
+                <Button variant="brandOutline">Backlog</Button>
+              </Link>
+              <Link href={`/projects/${id}/board`}>
+                <Button>Active Sprint</Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-[#E8E8E8] bg-white p-6">
+          <ProjectSprintsSection projectId={id} initialSprints={initialSprints} />
+        </section>
       </div>
-      <h1 className="text-2xl font-bold mb-2">{project.name}</h1>
-      {project.description && (
-        <p className="text-muted-foreground mb-6">{project.description}</p>
-      )}
-      <ProjectSprintsSection projectId={id} initialSprints={initialSprints} />
-    </main>
+    </AppShell>
   );
 }

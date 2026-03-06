@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ProjectList } from "@/features/projects/components";
-import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
-import { CurrentUserTag } from "@/components/current-user-tag";
+import { AppShell } from "@/components/app-shell";
+import { AppUserActions } from "@/components/app-user-actions";
 
 export default async function ProjectsPage() {
   const supabase = await createClient();
@@ -15,29 +14,25 @@ export default async function ProjectsPage() {
   }
 
   return (
-    <main className="container mx-auto py-8 px-4">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Link href="/">
-            <Button variant="outline">← หน้าแรก</Button>
-          </Link>
-        </div>
-        <div className="flex items-center gap-2">
-          <CurrentUserTag />
-          <Link href="/profile">
-            <Button variant="outline" size="sm">
-              โปรไฟล์
-            </Button>
-          </Link>
-          <Link href="/logout">
-            <Button variant="ghost" size="sm">
-              Logout
-            </Button>
-          </Link>
-        </div>
+    <AppShell
+      activeNav="squads"
+      breadcrumbs={[
+        { label: "หน้าแรก", href: "/" },
+        { label: "Squads" },
+      ]}
+      topbarRight={<AppUserActions />}
+    >
+      <div className="space-y-6">
+        <section className="rounded-xl border border-[#E8E8E8] bg-white px-6 py-5">
+          <p className="text-sm font-medium text-[#EE4D2D]">Team Overview</p>
+          <h1 className="mt-1 text-3xl font-semibold text-[#222222]">Squads</h1>
+          <p className="mt-2 max-w-2xl text-sm text-[#666666]">
+            มุมมองรวมของทีมและโปรเจกต์ทั้งหมดในระบบ เลือก Squad เพื่อเข้าไปดู backlog,
+            sprint และ board ได้ทันที
+          </p>
+        </section>
+        <ProjectList />
       </div>
-      <h1 className="text-2xl font-bold mb-4">Squads</h1>
-      <ProjectList />
-    </main>
+    </AppShell>
   );
 }

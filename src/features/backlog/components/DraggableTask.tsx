@@ -21,12 +21,12 @@ export function DraggableTask({ task, onClick }: DraggableTaskProps) {
       {...attributes}
       onClick={() => onClick?.(task)}
       className={cn(
-        "rounded-sm border border-[#E8E8E8] bg-card p-3 mb-2 cursor-grab active:cursor-grabbing shadow-[0_2px_8px_rgba(0,0,0,0.03)] transition-shadow hover:bg-accent",
+        "mb-2 cursor-grab rounded-md border border-[#E8E8E8] bg-card p-3 transition-colors hover:bg-accent active:cursor-grabbing",
         isDragging && "opacity-40 shadow-none"
       )}
     >
-      <span className="font-medium text-sm block">{task.title}</span>
-      <span className="text-xs text-muted-foreground">{task.priority}</span>
+      <span className="block text-sm font-medium text-[#222222]">{task.title}</span>
+      <span className="text-xs text-[#666666]">{task.priority}</span>
     </div>
   );
 }

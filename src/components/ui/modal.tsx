@@ -43,7 +43,7 @@ export function Modal({
     >
       <div
         className={cn(
-          "w-full rounded-lg border bg-background p-6 shadow-lg",
+          "w-full rounded-xl border border-[#E8E8E8] bg-white p-6 shadow-[0_16px_40px_rgba(0,0,0,0.08)]",
           sizeClass[size],
           className
         )}

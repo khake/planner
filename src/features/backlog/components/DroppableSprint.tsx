@@ -23,7 +23,7 @@ export function DroppableSprint({ id, isBacklog, children }: DroppableSprintProp
         "min-h-[160px] rounded-lg border-2 border-dashed transition-all duration-200",
         isOver
           ? "border-primary bg-primary/10 shadow-inner"
-          : "border-transparent border-muted/50"
+          : "border-transparent"
       )}
     >
       {isOver && (

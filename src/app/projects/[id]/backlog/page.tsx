@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { DynamicBacklogBoard } from "@/features/backlog/components";
-import { CurrentUserTag } from "@/components/current-user-tag";
+import { AppShell } from "@/components/app-shell";
+import { AppUserActions } from "@/components/app-user-actions";
 
 export default async function BacklogPage({
   params,
@@ -29,18 +30,20 @@ export default async function BacklogPage({
   if (error || !project) notFound();
 
   return (
-    <main className="container mx-auto py-8 px-4">
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div />
-        <div className="flex items-center gap-2">
-          <CurrentUserTag />
-        </div>
-      </div>
+    <AppShell
+      activeNav="projects"
+      breadcrumbs={[
+        { label: "Squads", href: "/projects" },
+        { label: project.name, href: `/projects/${project.id}` },
+        { label: "Backlog" },
+      ]}
+      topbarRight={<AppUserActions />}
+    >
       <DynamicBacklogBoard
         projectId={project.id}
         projectName={project.name}
         openCreateSprint={openCreateSprint}
       />
-    </main>
+    </AppShell>
   );
 }
