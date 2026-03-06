@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -85,7 +86,22 @@ export default function ProfilePage() {
 
   return (
     <main className="container mx-auto py-8 px-4 max-w-xl">
-      <h1 className="text-2xl font-bold mb-4">โปรไฟล์ผู้ใช้</h1>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <Link href="/projects">
+            <Button variant="outline">← โปรเจ็กต์</Button>
+          </Link>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/logout">
+            <Button variant="ghost" size="sm">
+              Logout
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      <h1 className="text-2xl font-bold mb-6">โปรไฟล์ผู้ใช้</h1>
       {error && (
         <p className="text-sm text-destructive mb-3" role="alert">
           {error}
@@ -97,47 +113,53 @@ export default function ProfilePage() {
         </p>
       )}
 
-      <section className="space-y-4 mb-8">
+      <section className="space-y-3 mb-8">
         <h2 className="text-lg font-semibold">ข้อมูลพื้นฐาน</h2>
-        <form onSubmit={handleSaveProfile} className="space-y-4">
-          <div>
-            <Label>อีเมล</Label>
-            <Input value={email} disabled className="mt-1 bg-muted" />
-          </div>
-          <div>
-            <Label htmlFor="name">ชื่อที่ใช้แสดง</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="mt-1"
-            />
-          </div>
-          <Button type="submit" disabled={savingProfile}>
-            {savingProfile ? "กำลังบันทึก..." : "บันทึกโปรไฟล์"}
-          </Button>
-        </form>
+        <div className="rounded-lg border bg-card p-5 shadow-sm space-y-4">
+          <form onSubmit={handleSaveProfile} className="space-y-4">
+            <div className="space-y-2">
+              <Label>อีเมล</Label>
+              <Input value={email} disabled className="bg-muted" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="name">ชื่อที่ใช้แสดง</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={savingProfile}>
+                {savingProfile ? "กำลังบันทึก..." : "บันทึกโปรไฟล์"}
+              </Button>
+            </div>
+          </form>
+        </div>
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-3">
         <h2 className="text-lg font-semibold">เปลี่ยนรหัสผ่าน</h2>
-        <form onSubmit={handleChangePassword} className="space-y-4">
-          <div>
-            <Label htmlFor="new-password">รหัสผ่านใหม่</Label>
-            <Input
-              id="new-password"
-              type="password"
-              autoComplete="new-password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="mt-1"
-              required
-            />
-          </div>
-          <Button type="submit" disabled={savingPassword}>
-            {savingPassword ? "กำลังอัปเดต..." : "อัปเดตรหัสผ่าน"}
-          </Button>
-        </form>
+        <div className="rounded-lg border bg-card p-5 shadow-sm space-y-4">
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">รหัสผ่านใหม่</Label>
+              <Input
+                id="new-password"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={savingPassword}>
+                {savingPassword ? "กำลังอัปเดต..." : "อัปเดตรหัสผ่าน"}
+              </Button>
+            </div>
+          </form>
+        </div>
       </section>
     </main>
   );

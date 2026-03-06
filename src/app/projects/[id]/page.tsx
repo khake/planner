@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { redirect, notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
-import { notFound } from "next/navigation";
 import { ProjectSprintsSection } from "@/features/projects/components/ProjectSprintsSection";
+import { CurrentUserTag } from "@/components/current-user-tag";
 
 export default async function ProjectDetailPage({
   params,
@@ -11,6 +12,12 @@ export default async function ProjectDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+
+  if (!auth.user) {
+    redirect(`/login?from=/projects/${id}`);
+  }
+
   const { data: project, error } = await supabase
     .from("projects")
     .select("*")
@@ -48,6 +55,7 @@ export default async function ProjectDetailPage({
           </Link>
         </div>
         <div className="flex items-center gap-2">
+          <CurrentUserTag />
           <Link href="/profile">
             <Button variant="outline" size="sm">
               โปรไฟล์

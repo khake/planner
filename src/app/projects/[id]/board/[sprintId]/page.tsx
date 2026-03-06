@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { notFound } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { DynamicKanbanBoard } from "@/features/board/components";
 import { Button } from "@/components/ui/button";
+import { CurrentUserTag } from "@/components/current-user-tag";
 
 export default async function SprintBoardPage({
   params,
@@ -11,6 +12,11 @@ export default async function SprintBoardPage({
 }) {
   const { id: projectId, sprintId } = await params;
   const supabase = await createClient();
+
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) {
+    redirect(`/login?from=/projects/${projectId}/board/${sprintId}`);
+  }
 
   const { data: project, error: projectError } = await supabase
     .from("projects")
@@ -49,6 +55,7 @@ export default async function SprintBoardPage({
           </Link>
         </div>
         <div className="flex items-center gap-2">
+          <CurrentUserTag />
           <Link href="/profile">
             <Button variant="outline" size="sm">
               โปรไฟล์
