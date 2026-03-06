@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { buildRequestUrl } from "@/lib/request-url";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
   const from = String(formData.get("from") ?? "") || "/projects";
 
   if (username === expectedUser && password === expectedPass && expectedUser && expectedPass) {
-    const res = NextResponse.redirect(new URL(from, request.url));
+    const res = NextResponse.redirect(buildRequestUrl(from, request));
     res.cookies.set("planner_auth", "1", {
       httpOnly: true,
       sameSite: "lax",
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
     return res;
   }
 
-  const url = new URL("/login", request.url);
+  const url = buildRequestUrl("/login", request);
   url.searchParams.set("error", "1");
   return NextResponse.redirect(url);
 }

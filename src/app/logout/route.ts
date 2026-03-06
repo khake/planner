@@ -1,9 +1,10 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { buildRequestUrl } from "@/lib/request-url";
 
 export async function GET(request: NextRequest) {
-  const url = new URL("/login", request.url);
+  const url = buildRequestUrl("/login", request);
   const res = NextResponse.redirect(url);
 
   const supabase = createServerClient(
