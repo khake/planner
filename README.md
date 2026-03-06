@@ -56,6 +56,11 @@ src/
 
 Types ตรงกับ schema อยู่ที่ `src/types/index.ts`
 
+## Deploy ไป Production
+
+- **Deploy ไป AWS (จาก GitHub):** อ่านคู่มือใน [docs/DEPLOYMENT-AWS.md](docs/DEPLOYMENT-AWS.md)  
+  มี 2 วิธี: **AWS Amplify** (เชื่อม GitHub แล้ว deploy อัตโนมัติ) และ **EC2 + GitHub Actions**
+
 ## สคริปต์
 
 - `npm run dev` – รันโหมดพัฒนา (Turbopack)
