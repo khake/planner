@@ -28,6 +28,32 @@ if (!url || !key) {
 }
 
 const supabase = createClient(url, key);
+const POSITION_GAP = 1024;
+
+function assignSequentialPositions(tasks) {
+  const positionCounters = new Map();
+  const boardCounters = new Map();
+
+  return tasks.map((task) => {
+    const positionGroupKey = `${task.project_id}:${task.sprint_id ?? "backlog"}`;
+    const nextPositionIndex = (positionCounters.get(positionGroupKey) ?? 0) + 1;
+    positionCounters.set(positionGroupKey, nextPositionIndex);
+
+    let boardPosition = null;
+    if (task.sprint_id) {
+      const boardGroupKey = `${task.project_id}:${task.sprint_id}:${task.status}`;
+      const nextBoardIndex = (boardCounters.get(boardGroupKey) ?? 0) + 1;
+      boardCounters.set(boardGroupKey, nextBoardIndex);
+      boardPosition = nextBoardIndex * POSITION_GAP;
+    }
+
+    return {
+      ...task,
+      position: nextPositionIndex * POSITION_GAP,
+      board_position: boardPosition,
+    };
+  });
+}
 
 async function seed() {
   console.log("กำลังใส่ seed data...");
@@ -100,7 +126,7 @@ async function seed() {
   const findSprint = (projectId, name) =>
     sprints.find((s) => s.project_id === projectId && s.name === name);
 
-  const tasksPayload = [
+  const tasksPayload = assignSequentialPositions([
     // HPC Sprint 1
     { project_id: hpc.id, sprint_id: findSprint(hpc.id, "Sprint 1").id, title: "ออกแบบโครงสร้าง HPC Cluster", description: "กำหนด topology, node type, storage", status: "in_progress", priority: "high", assignee_id: user1Id },
     { project_id: hpc.id, sprint_id: findSprint(hpc.id, "Sprint 1").id, title: "ตั้งค่า Monitoring", description: "ติดตั้ง Prometheus + Grafana", status: "todo", priority: "medium", assignee_id: null },
@@ -120,7 +146,7 @@ async function seed() {
     { project_id: order.id, sprint_id: null, title: "ออกแบบ flow การชำระเงินใหม่", description: "รองรับช่องทางชำระเงินเพิ่มเติม", status: "backlog", priority: "high", assignee_id: null },
     { project_id: content.id, sprint_id: null, title: "จัดทำ Style Guide", description: "กำหนด tone & voice ของคอนเทนต์", status: "backlog", priority: "medium", assignee_id: null },
     { project_id: platform.id, sprint_id: null, title: "วางแผน Migrations", description: "ออกแบบ strategy สำหรับ zero-downtime", status: "backlog", priority: "high", assignee_id: null },
-  ];
+  ]);
 
   const { error: tasksErr } = await supabase.from("tasks").insert(tasksPayload);
 

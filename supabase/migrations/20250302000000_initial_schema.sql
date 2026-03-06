@@ -16,6 +16,7 @@ DROP TABLE IF EXISTS public.users;
 
 DROP FUNCTION IF EXISTS public.set_updated_at();
 
+DROP TYPE IF EXISTS task_type;
 DROP TYPE IF EXISTS task_priority;
 DROP TYPE IF EXISTS task_status;
 DROP TYPE IF EXISTS sprint_status;
@@ -24,6 +25,7 @@ DROP TYPE IF EXISTS sprint_status;
 CREATE TYPE sprint_status AS ENUM ('planned', 'active', 'completed');
 CREATE TYPE task_status AS ENUM ('backlog', 'todo', 'in_progress', 'review', 'done');
 CREATE TYPE task_priority AS ENUM ('low', 'medium', 'high', 'urgent');
+CREATE TYPE task_type AS ENUM ('story', 'task', 'bug', 'subtask');
 
 CREATE TABLE public.users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -56,8 +58,13 @@ CREATE TABLE public.tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
   sprint_id UUID REFERENCES public.sprints(id) ON DELETE SET NULL,
+  type task_type NOT NULL DEFAULT 'task',
+  parent_id UUID REFERENCES public.tasks(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   description TEXT,
+  tags TEXT[] NOT NULL DEFAULT '{}'::TEXT[],
+  position DOUBLE PRECISION NOT NULL DEFAULT EXTRACT(EPOCH FROM clock_timestamp()),
+  board_position DOUBLE PRECISION,
   status task_status NOT NULL DEFAULT 'backlog',
   priority task_priority NOT NULL DEFAULT 'medium',
   assignee_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
@@ -69,6 +76,9 @@ CREATE INDEX idx_sprints_project_id ON public.sprints(project_id);
 CREATE INDEX idx_tasks_sprint_id ON public.tasks(sprint_id);
 CREATE INDEX idx_tasks_project_id ON public.tasks(project_id);
 CREATE INDEX idx_tasks_assignee_id ON public.tasks(assignee_id);
+CREATE INDEX idx_tasks_parent_id ON public.tasks(parent_id);
+CREATE INDEX idx_tasks_project_sprint_position ON public.tasks(project_id, sprint_id, position);
+CREATE INDEX idx_tasks_sprint_status_board_position ON public.tasks(sprint_id, status, board_position);
 
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER AS $$

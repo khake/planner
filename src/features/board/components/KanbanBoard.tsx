@@ -1,16 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  closestCorners,
   DndContext,
   DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { arrayMove } from "@dnd-kit/sortable";
 import { createClient } from "@/lib/supabase/client";
 import type { TaskStatus, TaskWithAssignee } from "@/types";
 import type { Sprint } from "@/types";
@@ -21,14 +24,16 @@ import { KanbanLane } from "./KanbanLane";
 import { TaskCard } from "./TaskCard";
 import { TaskModal } from "./TaskModal";
 
-const LANES: { id: TaskStatus; label: string }[] = [
+const LANES: { id: BoardLaneStatus; label: string }[] = [
   { id: "todo", label: "Todo" },
   { id: "in_progress", label: "In Progress" },
   { id: "review", label: "Review" },
   { id: "done", label: "Done" },
 ];
 
-const BOARD_STATUSES: TaskStatus[] = ["todo", "in_progress", "review", "done"];
+type BoardLaneStatus = Exclude<TaskStatus, "backlog">;
+const BOARD_STATUSES: BoardLaneStatus[] = ["todo", "in_progress", "review", "done"];
+const POSITION_GAP = 1024;
 
 const THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
@@ -50,6 +55,46 @@ const STATUS_LABELS: Record<string, string> = {
   active: "Active",
   completed: "Completed",
 };
+
+type LaneState = Record<BoardLaneStatus, TaskWithAssignee[]>;
+
+function createEmptyLanes(): LaneState {
+  return {
+    todo: [],
+    in_progress: [],
+    review: [],
+    done: [],
+  };
+}
+
+function withSequentialBoardPositions(tasks: TaskWithAssignee[]): TaskWithAssignee[] {
+  return tasks.map((task, index) => ({
+    ...task,
+    board_position: (index + 1) * POSITION_GAP,
+  }));
+}
+
+function getNextPositionValue(tasks: Array<{ position: number }>) {
+  if (tasks.length === 0) return POSITION_GAP;
+  return Math.max(...tasks.map((task) => task.position ?? 0)) + POSITION_GAP;
+}
+
+function getNextBoardPositionValue(tasks: Array<{ board_position: number | null }>) {
+  if (tasks.length === 0) return POSITION_GAP;
+  return Math.max(...tasks.map((task) => task.board_position ?? 0)) + POSITION_GAP;
+}
+
+function attachAssignees(
+  tasks: TaskWithAssignee[],
+  profiles: { id: string; name: string; avatar_url: string | null }[]
+) {
+  return tasks.map((task) => ({
+    ...task,
+    assignee: task.assignee_id
+      ? profiles.find((profile) => profile.id === task.assignee_id) ?? null
+      : null,
+  }));
+}
 
 export type KanbanBoardProps = {
   projectId: string;
@@ -76,7 +121,7 @@ export function KanbanBoard({
   const durationStr = formatSprintDuration(sprintStartDate, sprintEndDate);
   const statusLabel = sprintStatus ? STATUS_LABELS[sprintStatus] ?? sprintStatus : null;
   const router = useRouter();
-  const [tasks, setTasks] = useState<TaskWithAssignee[]>([]);
+  const [lanes, setLanes] = useState<LaneState>(createEmptyLanes);
   const [users, setUsers] = useState<{ id: string; name: string; avatar_url: string | null }[]>([]);
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
   const [coverImageByTask, setCoverImageByTask] = useState<Record<string, string>>({});
@@ -89,6 +134,84 @@ export function KanbanBoard({
   const [completing, setCompleting] = useState(false);
   const [startingSprint, setStartingSprint] = useState(false);
   const supabase = createClient();
+  const dragSnapshotRef = useRef<LaneState | null>(null);
+  const lanesRef = useRef<LaneState>(lanes);
+
+  const allTasks = useMemo(
+    () => BOARD_STATUSES.flatMap((status) => lanes[status]),
+    [lanes]
+  );
+
+  useEffect(() => {
+    lanesRef.current = lanes;
+  }, [lanes]);
+
+  const findTask = useCallback(
+    (taskId: string) => allTasks.find((task) => task.id === taskId),
+    [allTasks]
+  );
+
+  const getContainerForTask = useCallback(
+    (taskId: string): BoardLaneStatus | null =>
+      (findTask(taskId)?.status as BoardLaneStatus | undefined) ?? null,
+    [findTask]
+  );
+
+  const getStatusFromOverId = useCallback(
+    (overId: string): BoardLaneStatus | null => {
+      if (overId.startsWith("lane-")) {
+        return BOARD_STATUSES.find((status) => `lane-${status}` === overId) ?? null;
+      }
+      return getContainerForTask(overId);
+    },
+    [getContainerForTask]
+  );
+
+  const persistLanePositions = useCallback(
+    async (
+      nextLanes: LaneState,
+      statuses: BoardLaneStatus[],
+      movedTask?: { id: string; from: BoardLaneStatus; to: BoardLaneStatus }
+    ) => {
+      const uniqueStatuses = Array.from(new Set(statuses));
+      const updates = uniqueStatuses.flatMap((status) =>
+        nextLanes[status].map((task) =>
+          supabase
+            .from("tasks")
+            .update({ status, board_position: task.board_position })
+            .eq("id", task.id)
+        )
+      );
+
+      const results = await Promise.all(updates);
+      const failed = results.find((result: { error: unknown }) => Boolean(result.error));
+      if (failed?.error) {
+        throw failed.error;
+      }
+
+      if (movedTask && movedTask.from !== movedTask.to) {
+        try {
+          await fetch("/api/activity-log", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "UPDATE_STATUS",
+              targetType: "task",
+              targetId: movedTask.id,
+              details: {
+                old_status: movedTask.from,
+                new_status: movedTask.to,
+                sprint_id: sprintId,
+              },
+            }),
+          });
+        } catch {
+          // ignore
+        }
+      }
+    },
+    [sprintId, supabase]
+  );
 
   const handleStartSprint = useCallback(async () => {
     setStartingSprint(true);
@@ -110,15 +233,24 @@ export function KanbanBoard({
     const [tasksRes, usersRes] = await Promise.all([
       supabase
         .from("tasks")
-        .select("*, assignee:users!assignee_id(id, name)")
+        .select("*")
         .eq("sprint_id", sprintId)
         .in("status", BOARD_STATUSES)
-        .order("created_at", { ascending: true }),
-      supabase.from("users").select("id, name, avatar_url").order("name"),
+        .order("board_position", { ascending: true }),
+      supabase.from("profiles").select("id, name, avatar_url").order("name"),
     ]);
-    const taskList = (tasksRes.data ?? []) as TaskWithAssignee[];
-    if (!tasksRes.error) setTasks(taskList);
-    if (!usersRes.error) setUsers(usersRes.data ?? []);
+    const profiles = usersRes.data ?? [];
+    const taskList = attachAssignees((tasksRes.data ?? []) as TaskWithAssignee[], profiles);
+    if (!tasksRes.error) {
+      const nextLanes = createEmptyLanes();
+      for (const status of BOARD_STATUSES) {
+        nextLanes[status] = withSequentialBoardPositions(
+          taskList.filter((task) => task.status === status)
+        );
+      }
+      setLanes(nextLanes);
+    }
+    if (!usersRes.error) setUsers(profiles);
 
     const taskIds = taskList.map((t) => t.id);
     if (taskIds.length > 0) {
@@ -158,39 +290,106 @@ export function KanbanBoard({
 
   const handleDragStart = (event: DragStartEvent) => {
     const id = event.active.id as string;
-    const task = tasks.find((t) => t.id === id);
-    if (task) setActiveTask(task);
+    const task = findTask(id);
+    if (task) {
+      dragSnapshotRef.current = lanes;
+      setActiveTask(task);
+    }
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    const activeTask = findTask(activeId);
+    if (!activeTask) return;
+
+    const fromStatus = getContainerForTask(activeId);
+    const toStatus = getStatusFromOverId(overId);
+    if (!fromStatus || !toStatus) return;
+
+    setLanes((current) => {
+      if (fromStatus === toStatus) {
+        if (overId.startsWith("lane-")) {
+          return current;
+        }
+        const items = current[fromStatus];
+        const oldIndex = items.findIndex((task) => task.id === activeId);
+        const newIndex = items.findIndex((task) => task.id === overId);
+        if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
+          return current;
+        }
+        return {
+          ...current,
+          [fromStatus]: withSequentialBoardPositions(arrayMove(items, oldIndex, newIndex)),
+        };
+      }
+
+      const sourceItems = [...current[fromStatus]];
+      const destinationItems = current[toStatus];
+      const activeIndex = sourceItems.findIndex((task) => task.id === activeId);
+      if (activeIndex === -1) return current;
+
+      const destinationIndex = overId.startsWith("lane-")
+        ? destinationItems.length
+        : destinationItems.findIndex((task) => task.id === overId);
+
+      const [movingTask] = sourceItems.splice(activeIndex, 1);
+      const nextTask = { ...movingTask, status: toStatus };
+      const insertAt =
+        destinationIndex < 0 ? destinationItems.length : destinationIndex;
+      const nextDestinationItems = [...destinationItems];
+      nextDestinationItems.splice(insertAt, 0, nextTask);
+
+      return {
+        ...current,
+        [fromStatus]: withSequentialBoardPositions([...sourceItems]),
+        [toStatus]: withSequentialBoardPositions(nextDestinationItems),
+      };
+    });
+  };
+
+  const handleDragCancel = () => {
+    if (dragSnapshotRef.current) {
+      setLanes(dragSnapshotRef.current);
+    }
+    dragSnapshotRef.current = null;
+    setActiveTask(null);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
-    setActiveTask(null);
     const { active, over } = event;
-    if (!over) return;
-    const taskId = active.id as string;
-    const overId = String(over.id);
-    const newStatus = BOARD_STATUSES.find((s) => `lane-${s}` === overId) as TaskStatus | undefined;
-    if (!newStatus) return;
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task || task.status === newStatus) return;
-    const { error } = await supabase
-      .from("tasks")
-      .update({ status: newStatus })
-      .eq("id", taskId);
-    if (!error) {
-      try {
-        await fetch("/api/activity-log", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "UPDATE_STATUS",
-            targetType: "task",
-            targetId: taskId,
-            details: { old_status: task.status, new_status: newStatus, sprint_id: sprintId },
-          }),
-        });
-      } catch {
-        // ignore
-      }
+    const taskId = String(active.id);
+    const draggedTask = activeTask;
+    const snapshot = dragSnapshotRef.current;
+
+    setActiveTask(null);
+    dragSnapshotRef.current = null;
+
+    if (!over || !draggedTask || !snapshot) {
+      if (snapshot) setLanes(snapshot);
+      return;
+    }
+
+    const finalStatus =
+      BOARD_STATUSES.find((status) => lanesRef.current[status].some((task) => task.id === taskId)) ??
+      (draggedTask.status as BoardLaneStatus);
+
+    const changedStatuses: BoardLaneStatus[] = [
+      draggedTask.status as BoardLaneStatus,
+      finalStatus,
+    ];
+
+    try {
+      await persistLanePositions(lanesRef.current, changedStatuses, {
+        id: taskId,
+        from: draggedTask.status as BoardLaneStatus,
+        to: finalStatus,
+      });
+    } catch {
+      setLanes(snapshot);
       await fetchData();
     }
   };
@@ -228,20 +427,64 @@ export function KanbanBoard({
 
   const handleCompleteSprint = async () => {
     setCompleting(true);
-    const incompleteTasks = tasks.filter((t) => t.status !== "done");
-    const incompleteIds = incompleteTasks.map((t) => t.id);
+    const incompleteTasks = allTasks.filter((t) => t.status !== "done");
 
-    if (incompleteIds.length > 0) {
+    if (incompleteTasks.length > 0) {
       if (incompleteDestination === "backlog") {
-        await supabase
+        const { data: backlogTasks } = await supabase
           .from("tasks")
-          .update({ sprint_id: null, status: "backlog" })
-          .in("id", incompleteIds);
+          .select("position")
+          .eq("project_id", projectId)
+          .is("sprint_id", null);
+        let nextPosition = getNextPositionValue(
+          (backlogTasks ?? []) as Array<{ position: number }>
+        );
+        await Promise.all(
+          incompleteTasks.map((task) => {
+            const currentPosition = nextPosition;
+            nextPosition += POSITION_GAP;
+            return supabase
+              .from("tasks")
+              .update({
+                sprint_id: null,
+                status: "backlog",
+                position: currentPosition,
+                board_position: null,
+              })
+              .eq("id", task.id);
+          })
+        );
       } else {
-        await supabase
+        const { data: destinationTasks } = await supabase
           .from("tasks")
-          .update({ sprint_id: incompleteDestination, status: "todo" })
-          .in("id", incompleteIds);
+          .select("position, status, board_position")
+          .eq("project_id", projectId)
+          .eq("sprint_id", incompleteDestination);
+        let nextPosition = getNextPositionValue(
+          (destinationTasks ?? []) as Array<{ position: number }>
+        );
+        let nextBoardPosition = getNextBoardPositionValue(
+          ((destinationTasks ?? []).filter((task) => task.status === "todo")) as Array<{
+            board_position: number | null;
+          }>
+        );
+        await Promise.all(
+          incompleteTasks.map((task) => {
+            const currentPosition = nextPosition;
+            const currentBoardPosition = nextBoardPosition;
+            nextPosition += POSITION_GAP;
+            nextBoardPosition += POSITION_GAP;
+            return supabase
+              .from("tasks")
+              .update({
+                sprint_id: incompleteDestination,
+                status: "todo",
+                position: currentPosition,
+                board_position: currentBoardPosition,
+              })
+              .eq("id", task.id);
+          })
+        );
       }
     }
 
@@ -274,11 +517,10 @@ export function KanbanBoard({
     }
   };
 
-  const tasksByStatus = (status: TaskStatus) =>
-    tasks.filter((t) => t.status === status);
+  const tasksByStatus = (status: BoardLaneStatus) => lanes[status] ?? [];
 
-  const doneCount = tasks.filter((t) => t.status === "done").length;
-  const totalTasks = tasks.length;
+  const doneCount = allTasks.filter((t) => t.status === "done").length;
+  const totalTasks = allTasks.length;
   const progressPercent = totalTasks > 0 ? Math.round((doneCount / totalTasks) * 100) : 0;
 
   if (loading) {
@@ -341,8 +583,11 @@ export function KanbanBoard({
       </div>
 
       <DndContext
+        collisionDetection={closestCorners}
         sensors={sensors}
         onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragCancel={handleDragCancel}
         onDragEnd={handleDragEnd}
       >
         <div className="grid grid-cols-4 gap-4 overflow-x-auto pb-4">

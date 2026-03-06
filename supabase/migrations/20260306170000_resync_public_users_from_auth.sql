@@ -1,13 +1,3 @@
--- โปรไฟล์ผู้ใช้ (ผูกกับ auth.users)
-create table if not exists public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  name text,
-  avatar_url text,
-  created_at timestamptz default now()
-);
-
-comment on table public.profiles is 'User profiles synced from auth.users';
-
 create or replace function public.sync_auth_user()
 returns trigger as $$
 declare
@@ -79,20 +69,3 @@ from auth.users u
 on conflict (id) do update
   set name = excluded.name,
       avatar_url = excluded.avatar_url;
-
--- Activity logs
-create table if not exists public.activity_logs (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references public.profiles(id) on delete set null,
-  action text not null,
-  target_type text not null,
-  target_id uuid not null,
-  details jsonb,
-  created_at timestamptz default now()
-);
-
-create index if not exists idx_activity_logs_user_id on public.activity_logs(user_id);
-create index if not exists idx_activity_logs_target on public.activity_logs(target_type, target_id);
-
-comment on table public.activity_logs is 'User activity logs (task/sprint/comment changes)';
-

@@ -11,6 +11,8 @@ export type TaskStatus = "backlog" | "todo" | "in_progress" | "review" | "done";
 
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
+export type TaskType = "story" | "task" | "bug" | "subtask";
+
 // ============ Database Entities ============
 
 export interface User {
@@ -46,8 +48,13 @@ export interface Task {
   id: string;
   project_id: string;
   sprint_id: string | null;
+  type: TaskType;
+  parent_id: string | null;
   title: string;
   description: string | null;
+  tags: string[];
+  position: number;
+  board_position: number | null;
   status: TaskStatus;
   priority: TaskPriority;
   assignee_id: string | null;

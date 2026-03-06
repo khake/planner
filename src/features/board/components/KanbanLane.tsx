@@ -1,6 +1,7 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { TaskStatus } from "@/types";
 import type { TaskWithAssignee } from "@/types";
 import { cn } from "@/lib/utils";
@@ -36,17 +37,19 @@ export function KanbanLane({
       <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[#666666]">
         {title}
       </h3>
-      <div className="space-y-2 flex-1">
-        {tasks.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            attachmentCount={attachmentCounts[task.id] ?? 0}
-            coverImageUrl={coverImageByTask[task.id]}
-            onClick={() => onCardClick(task)}
-          />
-        ))}
-      </div>
+      <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
+        <div className="space-y-2 flex-1">
+          {tasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              attachmentCount={attachmentCounts[task.id] ?? 0}
+              coverImageUrl={coverImageByTask[task.id]}
+              onClick={() => onCardClick(task)}
+            />
+          ))}
+        </div>
+      </SortableContext>
     </div>
   );
 }

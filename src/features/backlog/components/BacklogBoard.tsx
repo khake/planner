@@ -1,17 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  closestCorners,
   DndContext,
   DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { createClient } from "@/lib/supabase/client";
 import type { Sprint, TaskWithAssignee } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -30,6 +33,38 @@ export type BacklogBoardProps = {
   openCreateSprint?: boolean;
 };
 
+const POSITION_GAP = 1024;
+
+function withSequentialPositions(tasks: TaskWithAssignee[]) {
+  return tasks.map((task, index) => ({
+    ...task,
+    position: (index + 1) * POSITION_GAP,
+  }));
+}
+
+function getNextPositionValue(tasks: TaskWithAssignee[]) {
+  if (tasks.length === 0) return POSITION_GAP;
+  return Math.max(...tasks.map((task) => task.position ?? 0)) + POSITION_GAP;
+}
+
+function getNextBoardPositionValue(tasks: TaskWithAssignee[]) {
+  const todoTasks = tasks.filter((task) => task.status === "todo");
+  if (todoTasks.length === 0) return POSITION_GAP;
+  return Math.max(...todoTasks.map((task) => task.board_position ?? 0)) + POSITION_GAP;
+}
+
+function attachAssignees(
+  tasks: TaskWithAssignee[],
+  profiles: { id: string; name: string; avatar_url: string | null }[]
+) {
+  return tasks.map((task) => ({
+    ...task,
+    assignee: task.assignee_id
+      ? profiles.find((profile) => profile.id === task.assignee_id) ?? null
+      : null,
+  }));
+}
+
 export function BacklogBoard({ projectId, projectName, openCreateSprint = false }: BacklogBoardProps) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -45,36 +80,135 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
   const [newCardTitle, setNewCardTitle] = useState("");
 
   const supabase = createClient();
+  const dragSnapshotRef = useRef<{
+    backlogTasks: TaskWithAssignee[];
+    tasksBySprint: Record<string, TaskWithAssignee[]>;
+  } | null>(null);
+  const backlogTasksRef = useRef<TaskWithAssignee[]>(backlogTasks);
+  const tasksBySprintRef = useRef<Record<string, TaskWithAssignee[]>>(tasksBySprint);
+
+  const allTasks = useMemo(
+    () => [...backlogTasks, ...Object.values(tasksBySprint).flat()],
+    [backlogTasks, tasksBySprint]
+  );
+
+  useEffect(() => {
+    backlogTasksRef.current = backlogTasks;
+  }, [backlogTasks]);
+
+  useEffect(() => {
+    tasksBySprintRef.current = tasksBySprint;
+  }, [tasksBySprint]);
 
   const findTask = useCallback(
     (taskId: string): TaskWithAssignee | undefined =>
-      backlogTasks.find((t) => t.id === taskId) ??
-      Object.values(tasksBySprint).flat().find((t) => t.id === taskId),
-    [backlogTasks, tasksBySprint]
+      allTasks.find((t) => t.id === taskId),
+    [allTasks]
+  );
+
+  const getContainerIdForTask = useCallback(
+    (taskId: string) => {
+      const task = findTask(taskId);
+      if (!task) return null;
+      return task.sprint_id ?? "backlog";
+    },
+    [findTask]
+  );
+
+  const getContainerIdFromOverId = useCallback(
+    (overId: string) => {
+      if (overId === "backlog") return "backlog";
+      if (overId.startsWith("sprint-")) return overId.replace("sprint-", "");
+      return getContainerIdForTask(overId);
+    },
+    [getContainerIdForTask]
+  );
+
+  const persistContainerPositions = useCallback(
+    async (
+      nextBacklogTasks: TaskWithAssignee[],
+      nextTasksBySprint: Record<string, TaskWithAssignee[]>,
+      containers: string[],
+      movedTask?: {
+        id: string;
+        from: string;
+        to: string;
+        oldStatus: TaskWithAssignee["status"];
+        newStatus: TaskWithAssignee["status"];
+      }
+    ) => {
+      const uniqueContainers = Array.from(new Set(containers));
+      const updates = uniqueContainers.flatMap((containerId) => {
+        const tasksInContainer =
+          containerId === "backlog"
+            ? nextBacklogTasks
+            : nextTasksBySprint[containerId] ?? [];
+        return tasksInContainer.map((task) =>
+          supabase
+            .from("tasks")
+            .update({
+              sprint_id: containerId === "backlog" ? null : containerId,
+              status: task.status,
+              position: task.position,
+            })
+            .eq("id", task.id)
+        );
+      });
+
+      const results = await Promise.all(updates);
+      const failed = results.find((result) => result.error);
+      if (failed?.error) {
+        throw failed.error;
+      }
+
+      if (movedTask && movedTask.from !== movedTask.to) {
+        try {
+          await fetch("/api/activity-log", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "MOVE_TASK",
+              targetType: "task",
+              targetId: movedTask.id,
+              details: {
+                from_sprint_id: movedTask.from === "backlog" ? null : movedTask.from,
+                to_sprint_id: movedTask.to === "backlog" ? null : movedTask.to,
+                old_status: movedTask.oldStatus,
+                new_status: movedTask.newStatus,
+              },
+            }),
+          });
+        } catch {
+          // ignore
+        }
+      }
+    },
+    [supabase]
   );
 
   const fetchData = useCallback(async () => {
     const [tasksRes, sprintsRes, usersRes] = await Promise.all([
       supabase
         .from("tasks")
-        .select("*, assignee:users!assignee_id(id, name, avatar_url)")
+        .select("*")
         .eq("project_id", projectId)
-        .order("created_at", { ascending: true }),
+        .order("position", { ascending: true }),
       supabase
         .from("sprints")
         .select("*")
         .eq("project_id", projectId)
         .order("start_date", { ascending: true }),
-      supabase.from("users").select("id, name, avatar_url").order("name"),
+      supabase.from("profiles").select("id, name, avatar_url").order("name"),
     ]);
-    const allTasks: TaskWithAssignee[] = (tasksRes.data ?? []) as TaskWithAssignee[];
+    const profiles = usersRes.data ?? [];
+    const allTasks = attachAssignees((tasksRes.data ?? []) as TaskWithAssignee[], profiles);
     const sprintList = sprintsRes.data ?? [];
     if (!sprintsRes.error) setSprints(sprintList);
-    if (!usersRes.error) setUsers(usersRes.data ?? []);
-    setBacklogTasks(allTasks.filter((t) => !t.sprint_id));
+    if (!usersRes.error) setUsers(profiles);
+    setBacklogTasks(withSequentialPositions(allTasks.filter((t) => !t.sprint_id)));
     const bySprint: Record<string, TaskWithAssignee[]> = {};
     for (const s of sprintList) {
-      bySprint[s.id] = allTasks.filter((t) => t.sprint_id === s.id);
+      bySprint[s.id] = withSequentialPositions(allTasks.filter((t) => t.sprint_id === s.id));
     }
     setTasksBySprint(bySprint);
     setLoading(false);
@@ -100,72 +234,151 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
   const handleDragStart = (event: DragStartEvent) => {
     const id = event.active.id as string;
     const task = findTask(id);
-    if (task) setActiveTask(task);
+    if (task) {
+      dragSnapshotRef.current = {
+        backlogTasks,
+        tasksBySprint,
+      };
+      setActiveTask(task);
+    }
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    const activeTask = findTask(activeId);
+    if (!activeTask) return;
+
+    const fromContainer = getContainerIdForTask(activeId);
+    const toContainer = getContainerIdFromOverId(overId);
+    if (!fromContainer || !toContainer) return;
+
+    if (fromContainer === toContainer) {
+      if (overId === "backlog" || overId.startsWith("sprint-")) return;
+
+      if (fromContainer === "backlog") {
+        setBacklogTasks((current) => {
+          const oldIndex = current.findIndex((task) => task.id === activeId);
+          const newIndex = current.findIndex((task) => task.id === overId);
+          if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
+            return current;
+          }
+          return withSequentialPositions(arrayMove(current, oldIndex, newIndex));
+        });
+        return;
+      }
+
+      setTasksBySprint((current) => {
+        const items = current[fromContainer] ?? [];
+        const oldIndex = items.findIndex((task) => task.id === activeId);
+        const newIndex = items.findIndex((task) => task.id === overId);
+        if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
+          return current;
+        }
+        return {
+          ...current,
+          [fromContainer]: withSequentialPositions(arrayMove(items, oldIndex, newIndex)),
+        };
+      });
+      return;
+    }
+
+    const sourceItems =
+      fromContainer === "backlog"
+        ? [...backlogTasks]
+        : [...(tasksBySprint[fromContainer] ?? [])];
+    const destinationItems =
+      toContainer === "backlog"
+        ? [...backlogTasks]
+        : [...(tasksBySprint[toContainer] ?? [])];
+    const activeIndex = sourceItems.findIndex((task) => task.id === activeId);
+    if (activeIndex === -1) return;
+
+    const [movingTask] = sourceItems.splice(activeIndex, 1);
+    const destinationIndex =
+      overId === "backlog" || overId.startsWith("sprint-")
+        ? destinationItems.length
+        : destinationItems.findIndex((task) => task.id === overId);
+    const nextTask = {
+      ...movingTask,
+      sprint_id: toContainer === "backlog" ? null : toContainer,
+      status: (toContainer === "backlog" ? "backlog" : "todo") as TaskWithAssignee["status"],
+    };
+    const insertAt =
+      destinationIndex < 0 ? destinationItems.length : destinationIndex;
+    destinationItems.splice(insertAt, 0, nextTask);
+
+    if (fromContainer === "backlog") {
+      setBacklogTasks(withSequentialPositions(sourceItems));
+    } else {
+      setTasksBySprint((current) => ({
+        ...current,
+        [fromContainer]: withSequentialPositions(sourceItems),
+      }));
+    }
+
+    if (toContainer === "backlog") {
+      setBacklogTasks(withSequentialPositions(destinationItems));
+    } else {
+      setTasksBySprint((current) => ({
+        ...current,
+        [toContainer]: withSequentialPositions(destinationItems),
+      }));
+    }
+  };
+
+  const handleDragCancel = () => {
+    if (dragSnapshotRef.current) {
+      setBacklogTasks(dragSnapshotRef.current.backlogTasks);
+      setTasksBySprint(dragSnapshotRef.current.tasksBySprint);
+    }
+    dragSnapshotRef.current = null;
+    setActiveTask(null);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    const taskId = active.id as string;
-    const task = findTask(taskId);
+    const taskId = String(active.id);
+    const draggedTask = activeTask;
+    const snapshot = dragSnapshotRef.current;
+
     setActiveTask(null);
-    if (!over || !task) return;
-    const overId = String(over.id);
-    let newSprintId: string | null;
-    if (overId === "backlog") newSprintId = null;
-    else if (overId.startsWith("sprint-")) newSprintId = overId.replace("sprint-", "");
-    else return;
-    const prevBacklog = [...backlogTasks];
-    const prevBySprint = { ...tasksBySprint };
+    dragSnapshotRef.current = null;
 
-    const isInBacklog = !task.sprint_id;
-    const fromSprintId = task.sprint_id ?? null;
-
-    const newStatus = newSprintId === null ? "backlog" : "todo";
-    if (isInBacklog) {
-      setBacklogTasks((b) => b.filter((t) => t.id !== taskId));
-    } else if (fromSprintId) {
-      setTasksBySprint((s) => ({
-        ...s,
-        [fromSprintId]: (s[fromSprintId] ?? []).filter((t) => t.id !== taskId),
-      }));
-    }
-    if (newSprintId === null) {
-      setBacklogTasks((b) => [...b, { ...task, sprint_id: null, status: "backlog" }]);
-    } else {
-      setTasksBySprint((s) => ({
-        ...s,
-        [newSprintId]: [...(s[newSprintId] ?? []), { ...task, sprint_id: newSprintId, status: "todo" }],
-      }));
-    }
-
-    const { error } = await supabase
-      .from("tasks")
-      .update({ sprint_id: newSprintId, status: newStatus })
-      .eq("id", taskId);
-    if (error) {
-      setBacklogTasks(prevBacklog);
-      setTasksBySprint(prevBySprint);
-    } else {
-      // log move / status change
-      try {
-        await fetch("/api/activity-log", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "MOVE_TASK",
-            targetType: "task",
-            targetId: taskId,
-            details: {
-              from_sprint_id: fromSprintId,
-              to_sprint_id: newSprintId,
-              old_status: task.status,
-              new_status: newStatus,
-            },
-          }),
-        });
-      } catch {
-        // ignore log errors
+    if (!over || !draggedTask || !snapshot) {
+      if (snapshot) {
+        setBacklogTasks(snapshot.backlogTasks);
+        setTasksBySprint(snapshot.tasksBySprint);
       }
+      return;
+    }
+
+    const currentTask =
+      backlogTasksRef.current.find((item) => item.id === taskId) ??
+      Object.values(tasksBySprintRef.current)
+        .flat()
+        .find((item) => item.id === taskId);
+    const finalContainer = currentTask?.sprint_id ?? "backlog";
+
+    try {
+      await persistContainerPositions(
+        backlogTasksRef.current,
+        tasksBySprintRef.current,
+        [draggedTask.sprint_id ?? "backlog", finalContainer],
+        {
+          id: taskId,
+          from: draggedTask.sprint_id ?? "backlog",
+          to: finalContainer,
+          oldStatus: draggedTask.status,
+          newStatus: currentTask?.status ?? draggedTask.status,
+        }
+      );
+    } catch {
+      setBacklogTasks(snapshot.backlogTasks);
+      setTasksBySprint(snapshot.tasksBySprint);
+      await fetchData();
     }
   };
 
@@ -227,10 +440,20 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
   const handleCreateCard = async (sprintId: null | string) => {
     const title = newCardTitle.trim();
     if (!title) return;
+    const containerTasks =
+      sprintId === null ? backlogTasksRef.current : tasksBySprintRef.current[sprintId] ?? [];
+    const nextPosition = getNextPositionValue(containerTasks);
+    const nextBoardPosition =
+      sprintId === null ? null : getNextBoardPositionValue(tasksBySprintRef.current[sprintId] ?? []);
     const payload = {
       project_id: projectId,
       sprint_id: sprintId,
+      type: "task" as const,
+      parent_id: null,
       title,
+      tags: [] as string[],
+      position: nextPosition,
+      board_position: nextBoardPosition,
       status: sprintId ? "todo" : "backlog",
       priority: "medium" as const,
     };
@@ -239,10 +462,15 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
       id: tempId,
       project_id: projectId,
       sprint_id: sprintId,
+      type: "task",
+      parent_id: null,
       title,
       status: payload.status as TaskWithAssignee["status"],
       priority: "medium",
       description: null,
+      tags: [],
+      position: payload.position,
+      board_position: payload.board_position,
       assignee_id: null,
       assignee: null,
     };
@@ -259,14 +487,17 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
     const { data, error } = await supabase
       .from("tasks")
       .insert(payload)
-      .select("*, assignee:users!assignee_id(id, name, avatar_url)")
+      .select("*")
       .single();
     if (error) {
       if (sprintId === null) setBacklogTasks((b) => b.filter((t) => t.id !== tempId));
       else setTasksBySprint((s) => ({ ...s, [sprintId]: (s[sprintId] ?? []).filter((t) => t.id !== tempId) }));
       return;
     }
-    const createdTask = (data ?? { ...tempTask, id: tempId }) as TaskWithAssignee;
+    const createdTask = attachAssignees(
+      [(data ?? { ...tempTask, id: tempId }) as TaskWithAssignee],
+      users
+    )[0];
     if (sprintId === null) {
       setBacklogTasks((b) => b.map((t) => (t.id === tempId ? createdTask : t)));
     } else {
@@ -337,8 +568,11 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
       />
 
       <DndContext
+        collisionDetection={closestCorners}
         sensors={sensors}
         onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragCancel={handleDragCancel}
         onDragEnd={handleDragEnd}
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -349,11 +583,13 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
               ลากงานไป Sprint หรือลากกลับมาที่นี่
             </p>
             <DroppableSprint id="backlog" isBacklog>
-              <div className="space-y-2">
-                {backlogTasks.map((task) => (
-                  <DraggableTask key={task.id} task={task} onClick={handleCardClick} />
-                ))}
-              </div>
+              <SortableContext items={backlogTasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {backlogTasks.map((task) => (
+                    <DraggableTask key={task.id} task={task} onClick={handleCardClick} />
+                  ))}
+                </div>
+              </SortableContext>
             </DroppableSprint>
             {creatingIn === "backlog" ? (
               <div className="mt-2 flex gap-1">
@@ -450,11 +686,16 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
                 </div>
               </div>
               <DroppableSprint id={sprint.id} isBacklog={false}>
-                <div className="space-y-2">
-                  {(tasksBySprint[sprint.id] ?? []).map((task) => (
-                    <DraggableTask key={task.id} task={task} onClick={handleCardClick} />
-                  ))}
-                </div>
+                <SortableContext
+                  items={(tasksBySprint[sprint.id] ?? []).map((task) => task.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2">
+                    {(tasksBySprint[sprint.id] ?? []).map((task) => (
+                      <DraggableTask key={task.id} task={task} onClick={handleCardClick} />
+                    ))}
+                  </div>
+                </SortableContext>
               </DroppableSprint>
               {creatingIn === sprint.id ? (
                 <div className="mt-2 flex gap-1">
