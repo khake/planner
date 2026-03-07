@@ -13,6 +13,8 @@ export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
 export type TaskType = "story" | "task" | "bug" | "subtask";
 
+export type EpicStatus = "open" | "in_progress" | "done";
+
 // ============ Database Entities ============
 
 export interface User {
@@ -46,6 +48,19 @@ export interface Sprint {
   updated_at?: string;
 }
 
+export interface Epic {
+  id: string;
+  project_id: string | null;
+  title: string;
+  description: string | null;
+  status: EpicStatus;
+  position: number;
+  start_date: string | null;
+  end_date: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Task {
   id: string;
   project_id: string;
@@ -62,6 +77,7 @@ export interface Task {
   assignee_id: string | null;
   ticket_number: number;
   ticket_key: string;
+  epic_id: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -94,6 +110,10 @@ export interface TaskWithAssignee extends Task {
   assignee?: User | null;
 }
 
+export interface EpicWithProject extends Epic {
+  project?: Project | null;
+}
+
 export interface SprintWithTasks extends Sprint {
   tasks?: TaskWithAssignee[];
 }
@@ -116,6 +136,9 @@ export type ProjectUpdate = Partial<Omit<Project, "id">>;
 
 export type SprintInsert = Omit<Sprint, "id"> & Partial<Pick<Sprint, "id">>;
 export type SprintUpdate = Partial<Omit<Sprint, "id">>;
+
+export type EpicInsert = Omit<Epic, "id"> & Partial<Pick<Epic, "id">>;
+export type EpicUpdate = Partial<Omit<Epic, "id">>;
 
 export type TaskInsert = Omit<
   Task,

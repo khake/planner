@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Building2, Settings2 } from "lucide-react";
+import { Building2, Settings2, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type SidebarKey = "squads" | "settings";
+type SidebarKey = "squads" | "portfolio" | "settings";
 
 type BreadcrumbItem = {
   label: string;
@@ -30,6 +30,13 @@ const navItems: {
     href: "/projects",
     icon: Building2,
     helper: "ดู Squad และสถานะงาน",
+  },
+  {
+    key: "portfolio",
+    label: "Portfolio",
+    href: "/epics",
+    icon: Layers,
+    helper: "Global Epics ข้าม Squad",
   },
   {
     key: "settings",

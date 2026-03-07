@@ -5,6 +5,12 @@
 DROP TRIGGER IF EXISTS allocate_ticket_key_trigger ON public.tasks;
 DROP TRIGGER IF EXISTS set_project_key_trigger ON public.projects;
 DROP TRIGGER IF EXISTS tasks_updated_at ON public.tasks;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'epics') THEN
+    DROP TRIGGER IF EXISTS epics_updated_at ON public.epics;
+  END IF;
+END $$;
 DROP TRIGGER IF EXISTS sprints_updated_at ON public.sprints;
 DROP TRIGGER IF EXISTS projects_updated_at ON public.projects;
 DROP TRIGGER IF EXISTS users_updated_at ON public.users;
@@ -12,6 +18,7 @@ DROP TRIGGER IF EXISTS users_updated_at ON public.users;
 DROP TABLE IF EXISTS public.task_comments;
 DROP TABLE IF EXISTS public.attachments;
 DROP TABLE IF EXISTS public.tasks;
+DROP TABLE IF EXISTS public.epics;
 DROP TABLE IF EXISTS public.sprints;
 DROP TABLE IF EXISTS public.projects;
 DROP TABLE IF EXISTS public.users;
@@ -60,6 +67,19 @@ CREATE TABLE public.sprints (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE public.epics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'open',
+  position DOUBLE PRECISION NOT NULL DEFAULT EXTRACT(EPOCH FROM clock_timestamp()),
+  start_date DATE,
+  end_date DATE,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
 CREATE TABLE public.tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
@@ -76,12 +96,15 @@ CREATE TABLE public.tasks (
   assignee_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
   ticket_number BIGINT,
   ticket_key TEXT,
+  epic_id UUID REFERENCES public.epics(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE INDEX idx_sprints_project_id ON public.sprints(project_id);
+CREATE INDEX idx_epics_project_id ON public.epics(project_id);
 CREATE INDEX idx_tasks_sprint_id ON public.tasks(sprint_id);
+CREATE INDEX idx_tasks_epic_id ON public.tasks(epic_id);
 CREATE INDEX idx_tasks_project_id ON public.tasks(project_id);
 CREATE INDEX idx_tasks_assignee_id ON public.tasks(assignee_id);
 CREATE INDEX idx_tasks_parent_id ON public.tasks(parent_id);
@@ -107,6 +130,9 @@ CREATE TRIGGER projects_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE TRIGGER sprints_updated_at
   BEFORE UPDATE ON public.sprints
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+CREATE TRIGGER epics_updated_at
+  BEFORE UPDATE ON public.epics
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE TRIGGER tasks_updated_at
   BEFORE UPDATE ON public.tasks

@@ -9,9 +9,11 @@ import { getTagClassName, getTaskTypeMeta } from "@/lib/task-ui";
 type DraggableTaskProps = {
   task: TaskWithAssignee;
   onClick?: (task: TaskWithAssignee) => void;
+  /** ชื่อ Epic เมื่อ task ผูกกับ Epic */
+  epicLabel?: string | null;
 };
 
-export function DraggableTask({ task, onClick }: DraggableTaskProps) {
+export function DraggableTask({ task, onClick, epicLabel = null }: DraggableTaskProps) {
   const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({
     id: task.id,
   });
@@ -46,6 +48,11 @@ export function DraggableTask({ task, onClick }: DraggableTaskProps) {
         <div className="flex items-center gap-2 min-w-0">
           {task.ticket_key && (
             <span className="text-[11px] font-mono text-[#666666] truncate">{task.ticket_key}</span>
+          )}
+          {task.epic_id && (
+            <span className="text-[11px] text-[#666666] truncate max-w-[7rem]" title={epicLabel ?? "Epic"}>
+              {epicLabel ?? "Epic"}
+            </span>
           )}
           <span className="text-xs text-[#666666] shrink-0">{task.priority}</span>
         </div>

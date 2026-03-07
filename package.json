@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "db:migrate": "node scripts/run-migration.js",
+    "db:reset-data": "node scripts/reset-data.js",
     "db:reindex-positions": "node scripts/reindex-task-positions.js",
     "db:resync-auth-users": "node scripts/resync-auth-users.js",
     "db:seed": "node scripts/seed.js",

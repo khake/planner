@@ -1,6 +1,7 @@
 /**
  * ใส่ข้อมูลตัวอย่าง (seed) ใน Supabase
  * รัน: node scripts/seed.js
+ * ข้อมูล ticket เยอะ (ทดสอบความเร็ว): SEED_TASK_COUNT=200 node scripts/seed.js
  * ต้องมี .env.local กับ NEXT_PUBLIC_SUPABASE_URL และ NEXT_PUBLIC_SUPABASE_ANON_KEY
  */
 const { createClient } = require("@supabase/supabase-js");
@@ -29,6 +30,8 @@ if (!url || !key) {
 
 const supabase = createClient(url, key);
 const POSITION_GAP = 1024;
+
+const EXTRA_TASK_COUNT = Math.max(0, parseInt(process.env.SEED_TASK_COUNT || "0", 10));
 
 function assignSequentialPositions(tasks) {
   const positionCounters = new Map();
@@ -126,15 +129,20 @@ async function seed() {
   const findSprint = (projectId, name) =>
     sprints.find((s) => s.project_id === projectId && s.name === name);
 
-  const tasksPayload = assignSequentialPositions([
+  const statuses = ["backlog", "todo", "in_progress", "review", "done"];
+  const priorities = ["low", "medium", "high", "urgent"];
+  const hpcSprint1 = findSprint(hpc.id, "Sprint 1");
+  const productSprint1 = findSprint(product.id, "Sprint 1");
+
+  const baseTasks = [
     // HPC Sprint 1
-    { project_id: hpc.id, sprint_id: findSprint(hpc.id, "Sprint 1").id, title: "ออกแบบโครงสร้าง HPC Cluster", description: "กำหนด topology, node type, storage", status: "in_progress", priority: "high", assignee_id: user1Id },
-    { project_id: hpc.id, sprint_id: findSprint(hpc.id, "Sprint 1").id, title: "ตั้งค่า Monitoring", description: "ติดตั้ง Prometheus + Grafana", status: "todo", priority: "medium", assignee_id: null },
-    { project_id: hpc.id, sprint_id: findSprint(hpc.id, "Sprint 1").id, title: "ทดสอบ Performance Benchmark", description: "รัน load test ชุดมาตรฐาน", status: "todo", priority: "high", assignee_id: null },
+    { project_id: hpc.id, sprint_id: hpcSprint1.id, title: "ออกแบบโครงสร้าง HPC Cluster", description: "กำหนด topology, node type, storage", status: "in_progress", priority: "high", assignee_id: user1Id },
+    { project_id: hpc.id, sprint_id: hpcSprint1.id, title: "ตั้งค่า Monitoring", description: "ติดตั้ง Prometheus + Grafana", status: "todo", priority: "medium", assignee_id: null },
+    { project_id: hpc.id, sprint_id: hpcSprint1.id, title: "ทดสอบ Performance Benchmark", description: "รัน load test ชุดมาตรฐาน", status: "todo", priority: "high", assignee_id: null },
 
     // Product Sprint 1
-    { project_id: product.id, sprint_id: findSprint(product.id, "Sprint 1").id, title: "ออกแบบ UX หน้า Dashboard", description: "Sketch / Wireframe flow หลัก", status: "in_progress", priority: "medium", assignee_id: user1Id },
-    { project_id: product.id, sprint_id: findSprint(product.id, "Sprint 1").id, title: "เก็บ Requirement จาก PO", description: "สัมภาษณ์ PO + Stakeholder", status: "todo", priority: "high", assignee_id: null },
+    { project_id: product.id, sprint_id: productSprint1.id, title: "ออกแบบ UX หน้า Dashboard", description: "Sketch / Wireframe flow หลัก", status: "in_progress", priority: "medium", assignee_id: user1Id },
+    { project_id: product.id, sprint_id: productSprint1.id, title: "เก็บ Requirement จาก PO", description: "สัมภาษณ์ PO + Stakeholder", status: "todo", priority: "high", assignee_id: null },
 
     // Content Sprint 1
     { project_id: content.id, sprint_id: findSprint(content.id, "Content Sprint 1").id, title: "วางแผนคอนเทนต์ประจำเดือน", description: "กำหนดหัวข้อบทความและ schedule", status: "todo", priority: "medium", assignee_id: null },
@@ -146,16 +154,66 @@ async function seed() {
     { project_id: order.id, sprint_id: null, title: "ออกแบบ flow การชำระเงินใหม่", description: "รองรับช่องทางชำระเงินเพิ่มเติม", status: "backlog", priority: "high", assignee_id: null },
     { project_id: content.id, sprint_id: null, title: "จัดทำ Style Guide", description: "กำหนด tone & voice ของคอนเทนต์", status: "backlog", priority: "medium", assignee_id: null },
     { project_id: platform.id, sprint_id: null, title: "วางแผน Migrations", description: "ออกแบบ strategy สำหรับ zero-downtime", status: "backlog", priority: "high", assignee_id: null },
-  ]);
+  ];
 
-  const { error: tasksErr } = await supabase.from("tasks").insert(tasksPayload);
-
-  if (tasksErr) {
-    console.error("❌ tasks:", tasksErr.message);
-    process.exit(1);
+  if (EXTRA_TASK_COUNT > 0) {
+    const titles = [
+      "ปรับปรุงประสิทธิภาพ module %d",
+      "แก้ไข bug รายงานจาก QA #%d",
+      "Refactor โค้ดส่วน %d",
+      "เพิ่ม unit test สำหรับ %d",
+      "อัปเดต dependency และ security patch %d",
+      "เขียนเอกสาร API endpoint %d",
+      "ติดตั้งและ config เซิร์ฟเวอร์ %d",
+      "Review และ merge PR ที่เกี่ยวข้องกับ %d",
+      "ติดตาม metric และ alert %d",
+      "สืบสวน incident รายการที่ %d",
+    ];
+    const projectsWithSprints = [
+      { project_id: hpc.id, sprint_id: hpcSprint1.id },
+      { project_id: product.id, sprint_id: productSprint1.id },
+    ];
+    for (let i = 0; i < EXTRA_TASK_COUNT; i++) {
+      const status = statuses[i % statuses.length];
+      const sprintId = status === "backlog" ? null : projectsWithSprints[i % projectsWithSprints.length].sprint_id;
+      const projectId = status === "backlog"
+        ? [hpc.id, product.id, order.id, content.id, platform.id][i % 5]
+        : projectsWithSprints[i % projectsWithSprints.length].project_id;
+      baseTasks.push({
+        project_id: projectId,
+        sprint_id: sprintId,
+        title: titles[i % titles.length].replace("%d", String(i + 1)),
+        description: `รายการที่ ${i + 1} สำหรับทดสอบการแสดงผลและความเร็ว`,
+        status,
+        priority: priorities[i % priorities.length],
+        assignee_id: i % 5 === 0 ? user1Id : null,
+      });
+    }
+    console.log(`   สร้าง ticket เพิ่ม ${EXTRA_TASK_COUNT} รายการ (รวม backlog + sprint หลาย status)`);
   }
 
-  console.log("✅ Seed เสร็จแล้ว: users, Squads 5 รายการ, sprints และ tasks สำหรับแต่ละ Squad");
+  const tasksPayload = assignSequentialPositions(baseTasks);
+  const BATCH_SIZE = 100;
+
+  if (tasksPayload.length <= BATCH_SIZE) {
+    const { error: tasksErr } = await supabase.from("tasks").insert(tasksPayload);
+    if (tasksErr) {
+      console.error("❌ tasks:", tasksErr.message);
+      process.exit(1);
+    }
+  } else {
+    for (let i = 0; i < tasksPayload.length; i += BATCH_SIZE) {
+      const batch = tasksPayload.slice(i, i + BATCH_SIZE);
+      const { error: tasksErr } = await supabase.from("tasks").insert(batch);
+      if (tasksErr) {
+        console.error("❌ tasks (batch):", tasksErr.message);
+        process.exit(1);
+      }
+      console.log(`   ใส่ tasks ชุดที่ ${Math.floor(i / BATCH_SIZE) + 1} (${batch.length} รายการ)`);
+    }
+  }
+
+  console.log("✅ Seed เสร็จแล้ว: users, Squads 5 รายการ, sprints และ tasks รวม " + tasksPayload.length + " ticket");
   console.log("   รีเฟรชหน้า /projects เพื่อดูข้อมูล");
 }
 

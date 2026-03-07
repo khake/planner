@@ -17,6 +17,7 @@ import {
 import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { createClient } from "@/lib/supabase/client";
 import type { Sprint, TaskWithAssignee } from "@/types";
+import { fetchSquadEpics, fetchGlobalEpics } from "@/lib/epic";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/contexts/ToastContext";
@@ -78,6 +79,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
   const [showCreateSprint, setShowCreateSprint] = useState(false);
   const [creatingIn, setCreatingIn] = useState<null | "backlog" | string>(null);
   const [newCardTitle, setNewCardTitle] = useState("");
+  const [epicLabelMap, setEpicLabelMap] = useState<Record<string, string>>({});
 
   const supabase = createClient();
   const dragSnapshotRef = useRef<{
@@ -213,6 +215,17 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
       bySprint[s.id] = withSequentialPositions(allTasks.filter((t) => t.sprint_id === s.id));
     }
     setTasksBySprint(bySprint);
+    try {
+      const [squadEpics, globalEpics] = await Promise.all([
+        fetchSquadEpics(supabase, projectId),
+        fetchGlobalEpics(supabase),
+      ]);
+      const map: Record<string, string> = {};
+      for (const e of [...squadEpics, ...globalEpics]) map[e.id] = e.title;
+      setEpicLabelMap(map);
+    } catch {
+      setEpicLabelMap({});
+    }
     setLoading(false);
   }, [projectId, supabase]);
 
@@ -478,6 +491,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
       assignee: null,
       ticket_number: 0,
       ticket_key: "",
+      epic_id: null,
     };
     if (sprintId === null) {
       setBacklogTasks((b) => [...b, tempTask]);
@@ -592,7 +606,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
               <SortableContext items={backlogTasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
                   {backlogTasks.map((task) => (
-                    <DraggableTask key={task.id} task={task} onClick={handleCardClick} />
+                    <DraggableTask key={task.id} task={task} onClick={handleCardClick} epicLabel={task.epic_id ? epicLabelMap[task.epic_id] ?? null : null} />
                   ))}
                 </div>
               </SortableContext>
@@ -698,7 +712,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
                 >
                   <div className="space-y-2">
                     {(tasksBySprint[sprint.id] ?? []).map((task) => (
-                      <DraggableTask key={task.id} task={task} onClick={handleCardClick} />
+                      <DraggableTask key={task.id} task={task} onClick={handleCardClick} epicLabel={task.epic_id ? epicLabelMap[task.epic_id] ?? null : null} />
                     ))}
                   </div>
                 </SortableContext>
