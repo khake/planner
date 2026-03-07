@@ -14,6 +14,8 @@ type TaskCardProps = {
   isDragging?: boolean;
   attachmentCount?: number;
   coverImageUrl?: string | null;
+  /** ชื่อ Epic (Squad หรือ Global) เมื่อ task ผูกกับ Epic */
+  epicLabel?: string | null;
 };
 
 export function TaskCard({
@@ -22,6 +24,7 @@ export function TaskCard({
   isDragging,
   attachmentCount = 0,
   coverImageUrl = null,
+  epicLabel = null,
 }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: task.id,
@@ -90,6 +93,11 @@ export function TaskCard({
           </span>
           {task.ticket_key && (
             <span className="text-[11px] font-mono text-muted-foreground">{task.ticket_key}</span>
+          )}
+          {task.epic_id && (
+            <span className="text-[11px] text-muted-foreground truncate max-w-[8rem]" title={epicLabel ?? "Epic"}>
+              {epicLabel ?? "Epic"}
+            </span>
           )}
         </div>
         <p className="font-medium text-sm">{task.title}</p>

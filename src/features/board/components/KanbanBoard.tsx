@@ -16,6 +16,7 @@ import {
 import { arrayMove } from "@dnd-kit/sortable";
 import { createClient } from "@/lib/supabase/client";
 import type { TaskStatus, TaskWithAssignee } from "@/types";
+import { fetchSquadEpics, fetchGlobalEpics } from "@/lib/epic";
 import type { Sprint } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -133,6 +134,7 @@ export function KanbanBoard({
   const [plannedSprints, setPlannedSprints] = useState<Sprint[]>([]);
   const [completing, setCompleting] = useState(false);
   const [startingSprint, setStartingSprint] = useState(false);
+  const [epicLabelMap, setEpicLabelMap] = useState<Record<string, string>>({});
   const supabase = createClient();
   const dragSnapshotRef = useRef<LaneState | null>(null);
   const lanesRef = useRef<LaneState>(lanes);
@@ -278,8 +280,19 @@ export function KanbanBoard({
       setAttachmentCounts({});
       setCoverImageByTask({});
     }
+    try {
+      const [squadEpics, globalEpics] = await Promise.all([
+        fetchSquadEpics(supabase, projectId),
+        fetchGlobalEpics(supabase),
+      ]);
+      const map: Record<string, string> = {};
+      for (const e of [...squadEpics, ...globalEpics]) map[e.id] = e.title;
+      setEpicLabelMap(map);
+    } catch {
+      setEpicLabelMap({});
+    }
     setLoading(false);
-  }, [sprintId, supabase]);
+  }, [projectId, sprintId, supabase]);
 
   useEffect(() => {
     fetchData();
@@ -601,6 +614,7 @@ export function KanbanBoard({
               tasks={tasksByStatus(lane.id)}
               attachmentCounts={attachmentCounts}
               coverImageByTask={coverImageByTask}
+              epicLabelMap={epicLabelMap}
               onCardClick={handleCardClick}
             />
           ))}
@@ -613,6 +627,7 @@ export function KanbanBoard({
                 task={activeTask}
                 attachmentCount={attachmentCounts[activeTask.id] ?? 0}
                 coverImageUrl={coverImageByTask[activeTask.id]}
+                epicLabel={activeTask.epic_id ? epicLabelMap[activeTask.epic_id] ?? null : null}
                 isDragging
               />
             </div>

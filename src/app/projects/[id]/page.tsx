@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { ProjectSprintsSection } from "@/features/projects/components/ProjectSprintsSection";
+import { ProjectEpicsSection } from "@/features/epics/ProjectEpicsSection";
 import { AppShell } from "@/components/app-shell";
 import { AppUserActions } from "@/components/app-user-actions";
 
@@ -75,6 +76,10 @@ export default async function ProjectDetailPage({
 
         <section className="rounded-xl border border-[#E8E8E8] bg-white p-6">
           <ProjectSprintsSection projectId={id} initialSprints={initialSprints} />
+        </section>
+
+        <section className="rounded-xl border border-[#E8E8E8] bg-white p-6">
+          <ProjectEpicsSection projectId={id} />
         </section>
       </div>
     </AppShell>

@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
-import { createClient } from "@/lib/supabase/client";
-import type { TaskStatus, TaskPriority, TaskType, Task, TaskWithAssignee, Attachment } from "@/types";
+import { createClient, handleAuthErrorAndRedirect } from "@/lib/supabase/client";
+import type { TaskStatus, TaskPriority, TaskType, Task, TaskWithAssignee, Attachment, Epic } from "@/types";
+import { fetchSquadEpics, fetchGlobalEpics } from "@/lib/epic";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -98,16 +99,17 @@ function ImagePreviewModal({
     >
       <div
         ref={containerRef}
-        className="relative flex max-h-[90vh] max-w-[90vw] items-center justify-center p-12"
+        className="relative flex h-[90vh] w-[90vw] max-h-[90vh] max-w-[90vw] items-center justify-center p-12"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative w-full max-w-full h-[85vh] max-h-[85vh]">
+        <div className="relative h-full w-full min-h-0 min-w-0">
           <Image
             src={imageUrl}
             alt="Preview"
             fill
             className="object-contain"
             sizes="90vw"
+            unoptimized
           />
         </div>
         <div className="absolute right-2 top-2 flex gap-2">
@@ -166,6 +168,9 @@ export function TaskModal({
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
   const [assigneeId, setAssigneeId] = useState<string>(task.assignee_id ?? "");
+  const [epicId, setEpicId] = useState<string>(task.epic_id ?? "");
+  const [squadEpics, setSquadEpics] = useState<Epic[]>([]);
+  const [globalEpics, setGlobalEpics] = useState<Epic[]>([]);
   const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
   const [subtasks, setSubtasks] = useState<Task[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
@@ -187,17 +192,40 @@ export function TaskModal({
   const canSendComment = !isRichTextEmpty(newComment);
 
   const loadAttachments = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("attachments")
       .select("*")
       .eq("task_id", task.id)
       .order("created_at", { ascending: true });
+    if (error) {
+      if (await handleAuthErrorAndRedirect(error)) return;
+      setAttachments([]);
+      return;
+    }
     setAttachments(data ?? []);
   }, [task.id, supabase]);
 
   useEffect(() => {
     loadAttachments();
   }, [loadAttachments]);
+
+  const loadSquadEpics = useCallback(async () => {
+    try {
+      const list = await fetchSquadEpics(supabase, projectId);
+      setSquadEpics(list);
+    } catch {
+      setSquadEpics([]);
+    }
+  }, [projectId, supabase]);
+
+  const loadGlobalEpics = useCallback(async () => {
+    try {
+      const list = await fetchGlobalEpics(supabase);
+      setGlobalEpics(list);
+    } catch {
+      setGlobalEpics([]);
+    }
+  }, [supabase]);
 
   const loadAvailableTasks = useCallback(async () => {
     const { data } = await supabase
@@ -219,9 +247,11 @@ export function TaskModal({
   }, [supabase, task.id]);
 
   useEffect(() => {
+    loadSquadEpics();
+    loadGlobalEpics();
     loadAvailableTasks();
     loadSubtasks();
-  }, [loadAvailableTasks, loadSubtasks]);
+  }, [loadSquadEpics, loadGlobalEpics, loadAvailableTasks, loadSubtasks]);
 
   useEffect(() => {
     const setCurrentUserFromAuth = async () => {
@@ -447,6 +477,7 @@ export function TaskModal({
         board_position: nextBoardPosition,
         priority,
         assignee_id: assigneeId || null,
+        epic_id: epicId || null,
       })
       .eq("id", task.id);
     setSaving(false);
@@ -713,6 +744,7 @@ export function TaskModal({
                                   fill
                                   className="object-cover"
                                   sizes="3rem"
+                                  unoptimized
                                 />
                               </button>
                             ) : (
@@ -803,6 +835,38 @@ export function TaskModal({
                         {parentTask.title}
                       </option>
                     ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="modal-epic">Epic</Label>
+                  <select
+                    id="modal-epic"
+                    value={epicId}
+                    onChange={(e) => setEpicId(e.target.value)}
+                    disabled={saving || deleting}
+                    className={cn(
+                      "mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    )}
+                  >
+                    <option value="">— ไม่มี Epic —</option>
+                    {squadEpics.length > 0 && (
+                      <optgroup label="Squad Epics">
+                        {squadEpics.map((epic) => (
+                          <option key={epic.id} value={epic.id}>
+                            {epic.title}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {globalEpics.length > 0 && (
+                      <optgroup label="Portfolio (Global)">
+                        {globalEpics.map((epic) => (
+                          <option key={epic.id} value={epic.id}>
+                            {epic.title}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                 </div>
                 <div>
