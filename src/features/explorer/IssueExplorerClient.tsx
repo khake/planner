@@ -69,7 +69,7 @@ export function IssueExplorerClient({
       <section className="rounded-xl border border-[#E8E8E8] bg-white px-6 py-5">
         <p className="text-sm font-medium text-[#EE4D2D]">Global search</p>
         <h1 className="mt-1 text-3xl font-semibold text-[#222222]">
-          Issue Explorer
+          Search Issues
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-[#666666]">
           ค้นหาและกรองงานข้าม Squad ด้วย keyword, สถานะ, ความสำคัญ, ประเภท,

@@ -45,11 +45,13 @@ export default async function EpicDetailPage({
 
   return (
     <AppShell
-      activeNav={isGlobal ? "portfolio" : "squads"}
+      activeNav={isGlobal ? "portfolio" : "squadEpics"}
+      sidebarVariant={isGlobal ? "global" : "squad"}
+      projectId={epic.project_id ?? undefined}
       breadcrumbs={[
         { label: "Squads", href: "/projects" },
         ...(isGlobal
-          ? [{ label: "Portfolio", href: "/epics" }]
+          ? [{ label: "Global Epics", href: "/epics" }]
           : []),
         { label: epic.title },
       ]}

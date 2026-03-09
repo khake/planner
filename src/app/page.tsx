@@ -7,7 +7,7 @@ export default async function HomePage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <h1 className="text-3xl font-bold mb-2">Project planner</h1>
+      <h1 className="text-3xl font-bold mb-2">Project tracking</h1>
       <p className="text-muted-foreground mb-6 text-center max-w-md">
         Next.js 15 · Tailwind CSS · Shadcn UI · Supabase
       </p>

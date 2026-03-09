@@ -3,8 +3,8 @@ import { ToastProvider } from "@/contexts/ToastContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Jira Clone",
-  description: "Jira Clone built with Next.js 15, Tailwind, Shadcn UI & Supabase",
+  title: "Project tracking",
+  description: "Project tracking app built with Next.js 15, Tailwind, Shadcn UI & Supabase",
 };
 
 export default function RootLayout({

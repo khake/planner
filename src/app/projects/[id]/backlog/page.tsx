@@ -26,7 +26,10 @@ export default async function BacklogPage({
 
   return (
     <AppShell
-      activeNav="squads"
+      activeNav="squadBacklog"
+      sidebarVariant="squad"
+      projectId={project.id}
+      sidebarGroupTitle={project.name}
       breadcrumbs={[
         { label: "Squads", href: "/projects" },
         { label: project.name, href: `/projects/${project.id}` },

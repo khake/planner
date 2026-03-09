@@ -33,7 +33,10 @@ export default async function BoardPage({
 
   return (
     <AppShell
-      activeNav="squads"
+      activeNav="squadSprints"
+      sidebarVariant="squad"
+      projectId={projectId}
+      sidebarGroupTitle={project.name}
       breadcrumbs={[
         { label: "Squads", href: "/projects" },
         { label: project.name, href: `/projects/${project.id}` },
@@ -54,9 +57,6 @@ export default async function BoardPage({
             <div className="flex flex-wrap gap-2">
               <Link href={`/projects/${projectId}/backlog`}>
                 <Button variant="brandOutline">Backlog</Button>
-              </Link>
-              <Link href={`/projects/${projectId}/board`}>
-                <Button>Active Sprint</Button>
               </Link>
             </div>
           </div>

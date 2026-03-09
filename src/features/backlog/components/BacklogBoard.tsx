@@ -589,9 +589,17 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href={`/projects/${projectId}`}>
-              <Button variant="brandOutline">ภาพรวม Squad</Button>
-            </Link>
+            <Button
+              variant="brandOutline"
+              className="gap-2"
+              onClick={() => {
+                setCreatingIn("backlog");
+                setNewCardTitle("");
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              Add Card
+            </Button>
             <Button onClick={() => setShowCreateSprint(true)} className="gap-2">
               <Plus className="h-4 w-4" />
               Create Sprint

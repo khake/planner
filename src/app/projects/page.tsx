@@ -9,6 +9,7 @@ export default async function ProjectsPage() {
   return (
     <AppShell
       activeNav="squads"
+      sidebarVariant="projects"
       breadcrumbs={[
         { label: "หน้าแรก", href: "/" },
         { label: "Squads" },
@@ -28,7 +29,7 @@ export default async function ProjectsPage() {
             </div>
             <Link href="/explorer">
               <Button variant="brandOutline" size="sm">
-                Issue Explorer
+                Search Issues
               </Button>
             </Link>
           </div>

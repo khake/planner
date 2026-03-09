@@ -1,5 +1,5 @@
 /**
- * Server-side task query for Issue Explorer.
+ * Server-side task query for Search Issues.
  * Applies filter and pagination, returns tasks + total count.
  */
 

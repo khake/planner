@@ -38,7 +38,10 @@ export default async function SprintBoardPage({
 
   return (
     <AppShell
-      activeNav="squads"
+      activeNav="squadSprints"
+      sidebarVariant="squad"
+      projectId={projectId}
+      sidebarGroupTitle={project.name}
       breadcrumbs={[
         { label: "Squads", href: "/projects" },
         { label: project.name, href: `/projects/${project.id}` },

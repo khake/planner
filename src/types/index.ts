@@ -1,5 +1,5 @@
 /**
- * Jira Clone - TypeScript Interfaces
+ * Project tracking - TypeScript Interfaces
  * สอดคล้องกับ Supabase Schema
  */
 

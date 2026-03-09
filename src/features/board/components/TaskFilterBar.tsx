@@ -36,7 +36,7 @@ export type TaskFilterBarProps = {
   projects?: ProjectOption[];
   showSprintFilter?: boolean;
   showSquadFilter?: boolean;
-  /** When true, appends page=1 and current pageSize to URL on filter change (e.g. for Issue Explorer). */
+  /** When true, appends page=1 and current pageSize to URL on filter change (e.g. for Search Issues). */
   preservePageSizeOnFilter?: boolean;
 };
 

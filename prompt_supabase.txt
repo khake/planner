@@ -1,4 +1,4 @@
-สร้างโปรเจกต์ **Project Planner (Jira Clone)** ด้วยสเปกดังนี้:
+สร้างโปรเจกต์ **Project Tracking (Project tracking)** ด้วยสเปกดังนี้:
 ---
 ## Tech Stack
 - **Next.js 15** (App Router)

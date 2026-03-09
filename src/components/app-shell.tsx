@@ -1,58 +1,45 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Building2, Settings2, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type SidebarKey = "squads" | "portfolio" | "settings";
+import {
+  getSidebarItems,
+  type SidebarKey,
+  type SidebarVariant,
+} from "@/config/sidebar";
 
 type BreadcrumbItem = {
   label: string;
   href?: string;
 };
 
+export type { SidebarKey, SidebarVariant };
+
 type AppShellProps = {
+  /** คีย์เมนูที่ active (ใช้ไฮไลต์) */
   activeNav: SidebarKey;
+  /** โหมดเมนู: projects = หน้า /projects, squad = หน้า Squad, global = Epics/Search/Profile */
+  sidebarVariant: SidebarVariant;
+  /** ใช้เมื่อ sidebarVariant === "squad" เพื่อให้ลิงก์ Squad Epics ไป /projects/[id] */
+  projectId?: string;
+  /** ชื่อ Squad/โปรเจ็กต์ปัจจุบัน (ใช้เป็นหัวข้อกลุ่มเมนูใน sidebar สำหรับ squad) */
+  sidebarGroupTitle?: string;
   breadcrumbs: BreadcrumbItem[];
   topbarRight?: ReactNode;
   children: ReactNode;
 };
 
-const navItems: {
-  key: SidebarKey;
-  label: string;
-  href: string;
-  icon: typeof Building2;
-  helper: string;
-}[] = [
-  {
-    key: "squads",
-    label: "ภาพรวมทีม",
-    href: "/projects",
-    icon: Building2,
-    helper: "ดู Squad และสถานะงาน",
-  },
-  {
-    key: "portfolio",
-    label: "Portfolio",
-    href: "/epics",
-    icon: Layers,
-    helper: "Global Epics ข้าม Squad",
-  },
-  {
-    key: "settings",
-    label: "การตั้งค่า",
-    href: "/profile",
-    icon: Settings2,
-    helper: "โปรไฟล์และความปลอดภัย",
-  },
-];
-
 export function AppShell({
   activeNav,
+  sidebarVariant,
+  projectId,
+  sidebarGroupTitle,
   breadcrumbs,
   topbarRight,
   children,
 }: AppShellProps) {
+  const navItems = getSidebarItems(sidebarVariant, projectId);
+  const isSquadSidebar = sidebarVariant === "squad";
+
   return (
     <div className="min-h-screen bg-[#F5F5F5] text-[#222222]">
       <div className="flex min-h-screen">
@@ -60,7 +47,7 @@ export function AppShell({
           <div className="border-b border-[#E8E8E8] px-6 py-6">
             <Link href="/projects" className="block">
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#EE4D2D]">
-                Planner
+                Tracking
               </p>
               <h1 className="mt-2 text-xl font-semibold text-[#222222]">
                 Team Workspace
@@ -71,37 +58,56 @@ export function AppShell({
             </Link>
           </div>
           <nav className="flex-1 space-y-2 px-4 py-5">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const active = item.key === activeNav;
-              return (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  className={cn(
-                    "flex items-start gap-3 rounded-md border px-4 py-3 transition-colors",
-                    active
-                      ? "border-[#EE4D2D]/20 bg-[#FFF3F0] text-[#EE4D2D]"
-                      : "border-transparent text-[#444444] hover:border-[#E8E8E8] hover:bg-white"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-md",
-                      active ? "bg-[#EE4D2D] text-white" : "bg-white text-[#666666]"
+            {(() => {
+              let orderHeaderRendered = false;
+              return navItems.map((item) => {
+                const Icon = item.icon;
+                const active = item.key === activeNav;
+                const isOrderItem =
+                  isSquadSidebar &&
+                  (item.key === "squadBacklog" ||
+                    item.key === "squadSprints" ||
+                    item.key === "squadEpics");
+                const shouldRenderOrderHeader = isOrderItem && !orderHeaderRendered;
+                if (shouldRenderOrderHeader) {
+                  orderHeaderRendered = true;
+                }
+
+                return (
+                  <div key={item.key} className="space-y-1">
+                    {shouldRenderOrderHeader && (
+                      <p className="px-1 text-xs font-semibold text-[#424242]">
+                        {sidebarGroupTitle ?? "Current Squad"}
+                      </p>
                     )}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold">{item.label}</span>
-                    <span className="mt-0.5 block text-xs text-[#666666]">
-                      {item.helper}
-                    </span>
-                  </span>
-                </Link>
-              );
-            })}
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "flex items-start gap-3 rounded-md border px-4 py-3 transition-colors",
+                        active
+                          ? "border-[#EE4D2D]/20 bg-[#FFF3F0] text-[#EE4D2D]"
+                          : "border-transparent text-[#444444] hover:border-[#E8E8E8] hover:bg-white"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-md",
+                          active ? "bg-[#EE4D2D] text-white" : "bg-white text-[#666666]"
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold">{item.label}</span>
+                        <span className="mt-0.5 block text-xs text-[#666666]">
+                          {item.helper}
+                        </span>
+                      </span>
+                    </Link>
+                  </div>
+                );
+              });
+            })()}
           </nav>
         </aside>
 

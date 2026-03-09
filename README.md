@@ -1,6 +1,6 @@
-# Planner
+# Project Tracking
 
-ระบบวางแผนงานทีมสไตล์ Jira สำหรับจัดการ Squad, Backlog, Sprint และ Board โดยพัฒนาด้วย **Next.js 15 (App Router)**, **Tailwind CSS**, **Shadcn UI** และ **Supabase**
+ระบบติดตามงานทีมสไตล์ Jira สำหรับจัดการ Squad, Backlog, Sprint และ Board โดยพัฒนาด้วย **Next.js 15 (App Router)**, **Tailwind CSS**, **Shadcn UI** และ **Supabase**
 
 ## จุดประสงค์ของระบบ
 
