@@ -1,18 +1,8 @@
-import { redirect } from "next/navigation";
 import { ProjectList } from "@/features/projects/components";
-import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/app-shell";
 import { AppUserActions } from "@/components/app-user-actions";
 
 export default async function ProjectsPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-
-  // ถ้ายังไม่ได้ login ให้ส่งไปหน้า /login ก่อน
-  if (!data.user) {
-    redirect("/login?from=/projects");
-  }
-
   return (
     <AppShell
       activeNav="squads"

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { DynamicBacklogBoard } from "@/features/backlog/components";
 import { AppShell } from "@/components/app-shell";
 import { AppUserActions } from "@/components/app-user-actions";
@@ -15,11 +15,6 @@ export default async function BacklogPage({
   const resolved = await searchParams;
   const openCreateSprint = resolved?.createSprint === "1";
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-
-  if (!auth.user) {
-    redirect(`/login?from=/projects/${id}/backlog`);
-  }
 
   const { data: project, error } = await supabase
     .from("projects")

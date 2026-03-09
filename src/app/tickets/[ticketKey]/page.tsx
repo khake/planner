@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { AppUserActions } from "@/components/app-user-actions";
 import { TicketDetailPage } from "@/features/board/components/TicketDetailPage";
@@ -11,11 +11,6 @@ export default async function TicketPage({
 }) {
   const { ticketKey } = await params;
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-
-  if (!auth.user) {
-    redirect(`/login?from=/tickets/${encodeURIComponent(ticketKey)}`);
-  }
 
   const decodedKey = decodeURIComponent(ticketKey);
   const { data: task, error } = await supabase
