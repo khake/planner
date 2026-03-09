@@ -165,15 +165,26 @@ export function ProjectList() {
             <span className="rounded-full bg-[#FAFAFA] px-3 py-1 text-xs font-medium text-[#666666]">
               Squad Workspace
             </span>
-            <Link
-              href={`/projects/${p.id}`}
-              className={cn(
-                buttonVariants({ variant: "brandOutline", size: "sm" }),
-                "inline-flex"
-              )}
-            >
-              ดู Squad
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={`/projects/${p.id}/backlog`}
+                className={cn(
+                  buttonVariants({ variant: "brandOutline", size: "sm" }),
+                  "inline-flex"
+                )}
+              >
+                เปิด Backlog
+              </Link>
+              <Link
+                href={`/projects/${p.id}/board`}
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "inline-flex"
+                )}
+              >
+                Active Sprint
+              </Link>
+            </div>
           </div>
         </li>
       ))}

@@ -5,7 +5,8 @@ import { ProfilePageClient } from "@/features/profile/components/profile-page-cl
 export default function ProfilePage() {
   return (
     <AppShell
-      activeNav="settings"
+      activeNav="squads"
+      sidebarVariant="global"
       breadcrumbs={[
         { label: "Squads", href: "/projects" },
         { label: "การตั้งค่า" },

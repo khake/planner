@@ -35,6 +35,7 @@ export default async function TicketPage({
   return (
     <AppShell
       activeNav="squads"
+      sidebarVariant="global"
       breadcrumbs={[
         { label: "Squads", href: "/projects" },
         { label: task.ticket_key ?? decodedKey, href: `/tickets/${ticketKey}` },

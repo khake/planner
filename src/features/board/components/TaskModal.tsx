@@ -506,11 +506,7 @@ export function TaskModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className={cn(
-            "flex-1 overflow-y-auto bg-muted/20 p-5 md:p-6 transition-[filter,transform] duration-300 ease-out",
-            isActivityOpen && "pointer-events-none scale-[0.995] blur-[2px]"
-          )}
-          aria-hidden={isActivityOpen}
+          className="flex-1 overflow-y-auto bg-muted/20 p-5 md:p-6"
         >
           <div className="flex min-h-full flex-col">
           <div className="mb-4 rounded-xl border bg-card px-5 py-4 shadow-sm">
@@ -1035,16 +1031,17 @@ export function TaskModal({
         <AnimatePresence>
           {isActivityOpen && (
             <>
-              <motion.button
-                type="button"
-                className="absolute inset-0 z-30 bg-background/25 backdrop-blur-[3px]"
-                onClick={() => setIsActivityOpen(false)}
-                aria-label="ปิดแผง Activity & Comments"
+              {/* ชั้นเบลอพื้นหลังเฉพาะใน modal (ไม่ทับแผงแชทเพราะ z-index ต่ำกว่า) */}
+              <motion.div
+                className="absolute inset-0 z-30 bg-background/40 backdrop-blur-[3px]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
+                onClick={() => setIsActivityOpen(false)}
+                aria-label="ปิดแผง Activity & Comments"
               />
+              {/* แผง Activity & Comments ลอยอยู่ด้านบนสุดของ modal */}
               <motion.div
                 className="absolute bottom-24 right-5 z-40 flex h-[72%] w-[min(460px,calc(100%-2.5rem))] flex-col overflow-hidden rounded-2xl border bg-card shadow-[0_24px_60px_rgba(0,0,0,0.2)] ring-1 ring-black/5"
                 initial={{ opacity: 0, y: 32, scale: 0.96 }}
@@ -1139,38 +1136,44 @@ export function TaskModal({
 
                   <form
                     onSubmit={handleSendComment}
-                    className="flex min-h-0 flex-col gap-3 border-t bg-muted/20 p-4"
+                    className="flex min-h-0 shrink-0 flex-col gap-3 border-t bg-muted/20 p-4"
                   >
-                    <div>
+                    <div className="shrink-0">
                       <p className="text-sm font-medium">เขียนคอมเมนต์ใหม่</p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         ใช้ toolbar แบบย่อสำหรับคุยกับทีมใน task นี้
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary font-medium">
+                    <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                      <span
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-medium"
+                        aria-hidden
+                      >
                         {currentUserName.charAt(0).toUpperCase()}
                       </span>
-                      <span className="max-w-[160px] truncate">{currentUserName}</span>
+                      <span className="min-w-0 max-w-[160px] truncate">{currentUserName}</span>
                     </div>
-                    <RichTextEditor
-                      value={newComment}
-                      onChange={setNewComment}
-                      placeholder="พิมพ์คอมเมนต์... รองรับตัวหนา ลิสต์ ลิงก์ และ code block"
-                      className="min-h-0 min-w-0 bg-background"
-                      compact
-                      disabled={saving || loadingComments}
-                      submitting={sendingComment}
-                      onModEnter={() => void handleSendComment()}
-                    />
-                    <div className="flex justify-end">
+                    <div className="min-h-[80px] min-w-0 shrink-0">
+                      <RichTextEditor
+                        value={newComment}
+                        onChange={setNewComment}
+                        placeholder="พิมพ์คอมเมนต์... รองรับตัวหนา ลิสต์ ลิงก์ และ code block"
+                        className="min-h-0 min-w-0 bg-background"
+                        compact
+                        disabled={saving || loadingComments}
+                        submitting={sendingComment}
+                        onModEnter={() => void handleSendComment()}
+                      />
+                    </div>
+                    <div className="flex shrink-0 justify-end">
                       <Button
                         type="submit"
+                        variant="default"
                         disabled={sendingComment || !canSendComment}
                         title="ส่ง"
-                        className="min-w-24"
+                        className="min-w-24 gap-2"
                       >
-                        <Send className="w-4 h-4" />
+                        <Send className="h-4 w-4 shrink-0" />
                         ส่ง
                       </Button>
                     </div>
@@ -1181,23 +1184,25 @@ export function TaskModal({
           )}
         </AnimatePresence>
 
-        <motion.button
-          type="button"
-          className="absolute bottom-[50px] right-5 z-50 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#EE4D2D] text-white shadow-[0_16px_30px_rgba(238,77,45,0.38)]"
-          onClick={() => setIsActivityOpen(true)}
-          whileHover={{ scale: 1.08, y: -2 }}
-          whileTap={{ scale: 0.95 }}
-          transition={{ type: "spring", stiffness: 320, damping: 18 }}
-          aria-label={`เปิด Activity & Comments (${comments.length})`}
-          title="Activity & Comments"
-        >
-          <MessageCircle className="h-6 w-6" />
-          {comments.length > 0 && (
-            <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-background bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
-              {comments.length > 99 ? "99+" : comments.length}
-            </span>
-          )}
-        </motion.button>
+        {!isActivityOpen && (
+          <motion.button
+            type="button"
+            className="absolute bottom-[50px] right-5 z-50 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#EE4D2D] text-white shadow-[0_16px_30px_rgba(238,77,45,0.38)]"
+            onClick={() => setIsActivityOpen(true)}
+            whileHover={{ scale: 1.08, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 320, damping: 18 }}
+            aria-label={`เปิด Activity & Comments (${comments.length})`}
+            title="Activity & Comments"
+          >
+            <MessageCircle className="h-6 w-6" />
+            {comments.length > 0 && (
+              <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-background bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
+                {comments.length > 99 ? "99+" : comments.length}
+              </span>
+            )}
+          </motion.button>
+        )}
       </div>
       </div>
     </div>

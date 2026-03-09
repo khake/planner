@@ -54,10 +54,11 @@ export default async function ExplorerPage({
 
   return (
     <AppShell
-      activeNav="squads"
+      activeNav="searchIssues"
+      sidebarVariant="global"
       breadcrumbs={[
         { label: "Squads", href: "/projects" },
-        { label: "Issue Explorer" },
+        { label: "Search Issues" },
       ]}
       topbarRight={<AppUserActions />}
     >

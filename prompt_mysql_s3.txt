@@ -1,4 +1,4 @@
-สร้างโปรเจกต์ **Project Planner (Jira Clone)** ใหม่ โดยให้ **เทียบเท่าพฤติกรรมของโปรเจกต์เดิม** แต่เปลี่ยนสแตกจาก Supabase ไปเป็น **Prisma + MySQL + NextAuth + Amazon S3** ตามข้อกำหนดด้านล่าง
+สร้างโปรเจกต์ **Project Tracking (Project tracking)** ใหม่ โดยให้ **เทียบเท่าพฤติกรรมของโปรเจกต์เดิม** แต่เปลี่ยนสแตกจาก Supabase ไปเป็น **Prisma + MySQL + NextAuth + Amazon S3** ตามข้อกำหนดด้านล่าง
 
 สิ่งสำคัญ:
 - ใช้ `Next.js 15` + `App Router` + `React 19` + `TypeScript`
@@ -14,7 +14,7 @@
 ---
 ## เป้าหมายของโปรเจกต์
 
-แอปนี้คือ Jira clone ขนาดเล็กสำหรับจัดการงานของทีม โดยต้องคง behavior หลักของโปรเจกต์เดิมไว้:
+แอปนี้คือระบบ Project tracking ขนาดเล็กสำหรับจัดการงานของทีม โดยต้องคง behavior หลักของโปรเจกต์เดิมไว้:
 - มีหน้า `Squads / Projects`
 - มี `Project detail`
 - มี `Backlog`
