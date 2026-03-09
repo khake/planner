@@ -53,7 +53,7 @@ export function AppShell({
                 Team Workspace
               </h1>
               <p className="mt-1 text-sm text-[#666666]">
-                Shopee-style planning board สำหรับงานของทีม
+                แทร็คกิ้ง board สำหรับงานของทีม
               </p>
             </Link>
           </div>
