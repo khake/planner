@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   closestCorners,
   DndContext,
@@ -22,8 +22,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/contexts/ToastContext";
 import { CreateSprintModal } from "@/features/sprints/CreateSprintModal";
-import { TaskModal } from "@/features/board/components";
+import { TaskModal, TaskFilterBar } from "@/features/board/components";
 import { cn } from "@/lib/utils";
+import {
+  parseTaskFilterFromSearchParams,
+  applyTaskFilter,
+} from "@/lib/search-filter";
 import { ExternalLink, Plus } from "lucide-react";
 import { DraggableTask } from "./DraggableTask";
 import { DroppableSprint } from "./DroppableSprint";
@@ -68,6 +72,11 @@ function attachAssignees(
 
 export function BacklogBoard({ projectId, projectName, openCreateSprint = false }: BacklogBoardProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const taskFilter = useMemo(
+    () => parseTaskFilterFromSearchParams(searchParams),
+    [searchParams]
+  );
   const { showToast } = useToast();
   const [backlogTasks, setBacklogTasks] = useState<TaskWithAssignee[]>([]);
   const [tasksBySprint, setTasksBySprint] = useState<Record<string, TaskWithAssignee[]>>({});
@@ -80,6 +89,18 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
   const [creatingIn, setCreatingIn] = useState<null | "backlog" | string>(null);
   const [newCardTitle, setNewCardTitle] = useState("");
   const [epicLabelMap, setEpicLabelMap] = useState<Record<string, string>>({});
+
+  const filteredBacklogTasks = useMemo(
+    () => applyTaskFilter(backlogTasks, taskFilter),
+    [backlogTasks, taskFilter]
+  );
+  const filteredTasksBySprint = useMemo(() => {
+    const out: Record<string, TaskWithAssignee[]> = {};
+    for (const s of sprints) {
+      out[s.id] = applyTaskFilter(tasksBySprint[s.id] ?? [], taskFilter);
+    }
+    return out;
+  }, [sprints, tasksBySprint, taskFilter]);
 
   const supabase = createClient();
   const dragSnapshotRef = useRef<{
@@ -587,6 +608,13 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
         onSuccess={handleCreateSprintSuccess}
       />
 
+      <TaskFilterBar
+        users={users}
+        sprints={sprints.map((s) => ({ id: s.id, name: s.name }))}
+        epics={Object.entries(epicLabelMap).map(([id, title]) => ({ id, title }))}
+        showSprintFilter
+      />
+
       <DndContext
         collisionDetection={closestCorners}
         sensors={sensors}
@@ -603,9 +631,9 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
               ลากงานไป Sprint หรือลากกลับมาที่นี่
             </p>
             <DroppableSprint id="backlog" isBacklog>
-              <SortableContext items={backlogTasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
+              <SortableContext items={filteredBacklogTasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
-                  {backlogTasks.map((task) => (
+                  {filteredBacklogTasks.map((task) => (
                     <DraggableTask key={task.id} task={task} onClick={handleCardClick} epicLabel={task.epic_id ? epicLabelMap[task.epic_id] ?? null : null} />
                   ))}
                 </div>
@@ -707,11 +735,11 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
               </div>
               <DroppableSprint id={sprint.id} isBacklog={false}>
                 <SortableContext
-                  items={(tasksBySprint[sprint.id] ?? []).map((task) => task.id)}
+                  items={(filteredTasksBySprint[sprint.id] ?? []).map((task) => task.id)}
                   strategy={verticalListSortingStrategy}
                 >
                   <div className="space-y-2">
-                    {(tasksBySprint[sprint.id] ?? []).map((task) => (
+                    {(filteredTasksBySprint[sprint.id] ?? []).map((task) => (
                       <DraggableTask key={task.id} task={task} onClick={handleCardClick} epicLabel={task.epic_id ? epicLabelMap[task.epic_id] ?? null : null} />
                     ))}
                   </div>

@@ -14,7 +14,7 @@ import { RichTextViewer } from "@/components/rich-text-viewer";
 import { isRichTextEmpty, sanitizeRichTextHtml } from "@/lib/rich-text";
 import { getTagClassName, getTaskTypeMeta, normalizeTaskTag } from "@/lib/task-ui";
 import { cn } from "@/lib/utils";
-import { Paperclip, Download, Trash2, Image as ImageIcon, FileText, File, X, Maximize2, MessageCircle, Send, Plus, XCircle, Copy, ExternalLink } from "lucide-react";
+import { Paperclip, Download, Trash2, Image as ImageIcon, FileText, File, X, Maximize2, MessageCircle, Send, Plus, XCircle, Copy, ExternalLink, Pencil } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TaskCommentWithUser } from "@/types";
 
@@ -159,6 +159,7 @@ export function TaskModal({
   onSaved,
   onDeleted,
 }: TaskModalProps) {
+  const [isEditMode, setIsEditMode] = useState(false);
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
   const [issueType, setIssueType] = useState<TaskType>(task.type);
@@ -286,9 +287,10 @@ export function TaskModal({
     setLoadingComments(false);
   }, [task.id, supabase, users]);
 
+  // Lazy load comments only when Activity panel is opened
   useEffect(() => {
-    loadComments();
-  }, [loadComments]);
+    if (isActivityOpen) loadComments();
+  }, [isActivityOpen, loadComments]);
 
   const handleSendComment = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -510,14 +512,31 @@ export function TaskModal({
           )}
           aria-hidden={isActivityOpen}
         >
+          <div className="flex min-h-full flex-col">
           <div className="mb-4 rounded-xl border bg-card px-5 py-4 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold">รายละเอียดงาน</h2>
+                <h2 className="text-lg font-semibold">
+                  {isEditMode ? "แก้ไขงาน" : "รายละเอียดงาน"}
+                </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  แก้ไขรายละเอียดงาน ไฟล์แนบ และข้อมูลพื้นฐานของ task ได้จากส่วนนี้
+                  {isEditMode
+                    ? "แก้ไขรายละเอียดงาน ไฟล์แนบ และข้อมูลพื้นฐานของ task ได้จากส่วนนี้"
+                    : "ดูรายละเอียดงาน — กด แก้ไข เพื่อเปลี่ยนข้อมูล"}
                 </p>
               </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {!isEditMode && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => setIsEditMode(true)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    แก้ไข
+                  </Button>
+                )}
               {task.ticket_key && (
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-md border bg-muted/50 px-2 py-1 font-mono text-sm font-medium text-muted-foreground">
@@ -568,6 +587,23 @@ export function TaskModal({
               )}
             </div>
           </div>
+          {(!isEditMode) ? (
+            <div className="flex min-h-full flex-col gap-4">
+              <h3 className="text-base font-semibold">{task.title}</h3>
+              {description && !isRichTextEmpty(description) && (
+                <RichTextViewer html={description} className="text-sm" />
+              )}
+              <div className="flex gap-2 pt-4">
+                <Button type="button" onClick={() => setIsEditMode(true)} className="gap-1.5">
+                  <Pencil className="h-3.5 w-3.5" />
+                  แก้ไข
+                </Button>
+                <Button type="button" variant="outline" onClick={onClose}>
+                  ปิด
+                </Button>
+              </div>
+            </div>
+          ) : (
           <form id="task-form" onSubmit={handleSave} className="flex min-h-full flex-col gap-4">
             <div className="grid flex-1 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,0.9fr)]">
               {/* ซ้าย 70%: Description / Requirement + Attachments */}
@@ -975,8 +1011,11 @@ export function TaskModal({
             <Button type="submit" form="task-form" disabled={saving}>
               {saving ? "กำลังบันทึก..." : "บันทึก"}
             </Button>
+            <Button type="button" variant="outline" onClick={() => setIsEditMode(false)}>
+              กลับไปโหมดดู
+            </Button>
             <Button type="button" variant="outline" onClick={onClose}>
-              ยกเลิก
+              ปิด
             </Button>
             <Button
               type="button"
@@ -988,7 +1027,9 @@ export function TaskModal({
               {deleting ? "กำลังลบ..." : "ลบ"}
             </Button>
           </div>
-        </form>
+            </form>
+          )}
+          </div>
         </div>
 
         <AnimatePresence>
@@ -1157,6 +1198,7 @@ export function TaskModal({
             </span>
           )}
         </motion.button>
+      </div>
       </div>
     </div>
   );

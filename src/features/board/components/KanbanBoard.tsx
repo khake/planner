@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   closestCorners,
   DndContext,
@@ -24,6 +24,11 @@ import { cn } from "@/lib/utils";
 import { KanbanLane } from "./KanbanLane";
 import { TaskCard } from "./TaskCard";
 import { TaskModal } from "./TaskModal";
+import { TaskFilterBar } from "./TaskFilterBar";
+import {
+  parseTaskFilterFromSearchParams,
+  applyTaskFilter,
+} from "@/lib/search-filter";
 
 const LANES: { id: BoardLaneStatus; label: string }[] = [
   { id: "todo", label: "Todo" },
@@ -122,6 +127,11 @@ export function KanbanBoard({
   const durationStr = formatSprintDuration(sprintStartDate, sprintEndDate);
   const statusLabel = sprintStatus ? STATUS_LABELS[sprintStatus] ?? sprintStatus : null;
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const taskFilter = useMemo(
+    () => parseTaskFilterFromSearchParams(searchParams),
+    [searchParams]
+  );
   const [lanes, setLanes] = useState<LaneState>(createEmptyLanes);
   const [users, setUsers] = useState<{ id: string; name: string; avatar_url: string | null }[]>([]);
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
@@ -143,6 +153,14 @@ export function KanbanBoard({
     () => BOARD_STATUSES.flatMap((status) => lanes[status]),
     [lanes]
   );
+
+  const filteredLanes = useMemo(() => {
+    const next: LaneState = createEmptyLanes();
+    for (const status of BOARD_STATUSES) {
+      next[status] = applyTaskFilter(lanes[status], taskFilter);
+    }
+    return next;
+  }, [lanes, taskFilter]);
 
   useEffect(() => {
     lanesRef.current = lanes;
@@ -532,10 +550,14 @@ export function KanbanBoard({
     }
   };
 
-  const tasksByStatus = (status: BoardLaneStatus) => lanes[status] ?? [];
+  const filteredAllTasks = useMemo(
+    () => BOARD_STATUSES.flatMap((status) => filteredLanes[status]),
+    [filteredLanes]
+  );
+  const tasksByStatus = (status: BoardLaneStatus) => filteredLanes[status] ?? [];
 
-  const doneCount = allTasks.filter((t) => t.status === "done").length;
-  const totalTasks = allTasks.length;
+  const doneCount = filteredAllTasks.filter((t) => t.status === "done").length;
+  const totalTasks = filteredAllTasks.length;
   const progressPercent = totalTasks > 0 ? Math.round((doneCount / totalTasks) * 100) : 0;
 
   if (loading) {
@@ -544,6 +566,10 @@ export function KanbanBoard({
 
   return (
     <div className="space-y-4">
+      <TaskFilterBar
+        users={users}
+        epics={Object.entries(epicLabelMap).map(([id, title]) => ({ id, title }))}
+      />
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#E8E8E8] bg-white px-6 py-5">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
           <div className="flex flex-wrap items-center gap-2 text-sm">
