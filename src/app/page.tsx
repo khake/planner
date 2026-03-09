@@ -1,16 +1,9 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { redirectAuthenticatedUser } from "@/lib/auth/server";
 
 export default async function HomePage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-
-  // ถ้าล็อกอินอยู่แล้วให้ไปหน้า /projects เลย
-  if (data.user) {
-    redirect("/projects");
-  }
+  await redirectAuthenticatedUser("/projects");
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">

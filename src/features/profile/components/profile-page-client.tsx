@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +13,6 @@ type Profile = {
 };
 
 export function ProfilePageClient() {
-  const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -29,7 +27,6 @@ export function ProfilePageClient() {
       const supabase = createClient();
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) {
-        router.push("/login");
         return;
       }
       const { data: profileData } = await supabase
@@ -45,7 +42,7 @@ export function ProfilePageClient() {
       }
     };
     load();
-  }, [router]);
+  }, []);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -15,6 +15,8 @@ export type TaskType = "story" | "task" | "bug" | "subtask";
 
 export type EpicStatus = "open" | "in_progress" | "done";
 
+export type ProjectRole = "owner" | "admin" | "member" | "viewer";
+
 // ============ Database Entities ============
 
 export interface User {
@@ -31,6 +33,14 @@ export interface Project {
   description: string | null;
   project_key: string;
   last_ticket_number: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ProjectMember {
+  project_id: string;
+  user_id: string;
+  role: ProjectRole;
   created_at?: string;
   updated_at?: string;
 }

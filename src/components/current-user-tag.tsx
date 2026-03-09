@@ -1,10 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/server";
 
 export async function CurrentUserTag() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-
-  const email = data.user?.email ?? null;
+  const user = await getCurrentUser();
+  const email = user?.email ?? null;
   if (!email) return null;
 
   const short = email.split("@")[0] || email;

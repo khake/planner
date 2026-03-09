@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { ProjectSprintsSection } from "@/features/projects/components/ProjectSprintsSection";
@@ -14,11 +14,6 @@ export default async function ProjectDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-
-  if (!auth.user) {
-    redirect(`/login?from=/projects/${id}`);
-  }
 
   const { data: project, error } = await supabase
     .from("projects")

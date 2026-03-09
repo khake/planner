@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { DynamicKanbanBoard } from "@/features/board/components";
 import { Button } from "@/components/ui/button";
 import { AppShell } from "@/components/app-shell";
@@ -13,11 +13,6 @@ export default async function BoardPage({
 }) {
   const { id: projectId } = await params;
   const supabase = await createClient();
-
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    redirect(`/login?from=/projects/${projectId}/board`);
-  }
 
   const { data: project, error: projectError } = await supabase
     .from("projects")

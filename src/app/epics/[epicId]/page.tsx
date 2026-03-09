@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { AppUserActions } from "@/components/app-user-actions";
 import { Button } from "@/components/ui/button";
@@ -12,11 +12,6 @@ export default async function EpicDetailPage({
 }) {
   const { epicId } = await params;
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-
-  if (!auth.user) {
-    redirect(`/login?from=/epics/${epicId}`);
-  }
 
   const { data: epic, error: epicError } = await supabase
     .from("epics")

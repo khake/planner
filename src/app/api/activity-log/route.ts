@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/server";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-  const userId = auth.user?.id ?? null;
+  const userId = (await getCurrentUser())?.id ?? null;
 
   const body = await request.json().catch(() => null);
   if (!body || !body.action || !body.targetType || !body.targetId) {
