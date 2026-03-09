@@ -28,7 +28,7 @@ import {
   parseTaskFilterFromSearchParams,
   applyTaskFilter,
 } from "@/lib/search-filter";
-import { ExternalLink, Plus } from "lucide-react";
+import { ExternalLink, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { DraggableTask } from "./DraggableTask";
 import { DroppableSprint } from "./DroppableSprint";
 
@@ -89,6 +89,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
   const [creatingIn, setCreatingIn] = useState<null | "backlog" | string>(null);
   const [newCardTitle, setNewCardTitle] = useState("");
   const [epicLabelMap, setEpicLabelMap] = useState<Record<string, string>>({});
+  const [collapsedSprints, setCollapsedSprints] = useState<Record<string, boolean>>({});
 
   const filteredBacklogTasks = useMemo(
     () => applyTaskFilter(backlogTasks, taskFilter),
@@ -128,6 +129,13 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
       allTasks.find((t) => t.id === taskId),
     [allTasks]
   );
+
+  const toggleSprintCollapsed = useCallback((sprintId: string) => {
+    setCollapsedSprints((prev) => ({
+      ...prev,
+      [sprintId]: !prev[sprintId],
+    }));
+  }, []);
 
   const getContainerIdForTask = useCallback(
     (taskId: string) => {
@@ -631,9 +639,9 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
         onDragCancel={handleDragCancel}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
           {/* Backlog column (droppable) */}
-          <div className="flex min-h-[360px] flex-col rounded-xl border border-[#E8E8E8] bg-white p-4">
+          <div className="flex min-h-[360px] flex-1 flex-col rounded-xl border border-[#E8E8E8] bg-white p-4 lg:basis-3/4 lg:max-w-[75%]">
             <h3 className="mb-1 text-base font-semibold text-[#222222]">Backlog</h3>
             <p className="mb-3 text-xs text-[#666666]">
               ลากงานไป Sprint หรือลากกลับมาที่นี่
@@ -679,111 +687,152 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
           </div>
 
           {/* Sprint columns */}
-          {sprints.map((sprint) => (
-            <div
-              key={sprint.id}
-              className={cn(
-                "flex min-h-[360px] flex-col rounded-xl border p-4",
-                sprint.status === "active"
-                  ? "border-primary/30 bg-[#FFF8F6]"
-                  : "border-[#E8E8E8] bg-white"
-              )}
-            >
-              <div className="flex items-start justify-between gap-2 mb-1">
-                <Link
-                  href={`/projects/${projectId}/board/${sprint.id}`}
+          <div className="flex w-full flex-col gap-3 lg:basis-1/4 lg:max-w-[25%]">
+            <h3 className="text-sm font-semibold text-[#222222]">Sprint List</h3>
+            {sprints.length === 0 && (
+              <p className="rounded-lg border border-dashed border-[#E8E8E8] bg-white px-3 py-3 text-xs text-[#666666]">
+                ยังไม่มี Sprint ใน Squad นี้ — สร้าง Sprint จากปุ่ม Create Sprint ด้านบน
+              </p>
+            )}
+            {sprints.map((sprint) => {
+              const collapsed = collapsedSprints[sprint.id] ?? false;
+              return (
+                <div
+                  key={sprint.id}
                   className={cn(
-                    "flex-1 min-w-0 rounded-md -m-1 p-1 transition-colors cursor-pointer",
-                    "hover:bg-muted/60",
-                    sprint.status === "active" && "text-primary font-semibold"
+                    "flex flex-col rounded-xl border p-3",
+                    sprint.status === "active"
+                      ? "border-primary/30 bg-[#FFF8F6]"
+                      : "border-[#E8E8E8] bg-white"
                   )}
                 >
-                  <h3 className="truncate text-base font-semibold text-[#222222]">
-                    {sprint.name}
-                  </h3>
-                  <p className="mt-0.5 text-xs text-[#666666]">
-                    {sprint.start_date && sprint.end_date
-                      ? `${sprint.start_date} – ${sprint.end_date}`
-                      : "—"}
-                  </p>
-                </Link>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {sprint.status === "planned" && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleStartSprint(sprint.id);
-                      }}
-                    >
-                      Start Sprint
-                    </Button>
-                  )}
-                  {sprint.status === "active" && (
-                    <span className="text-xs text-primary font-medium whitespace-nowrap">Active</span>
-                  )}
-                  {sprint.status === "completed" && (
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">Done</span>
-                  )}
-                  <Link
-                    href={`/projects/${projectId}/board/${sprint.id}`}
-                    className={cn(
-                      "inline-flex items-center gap-1 text-xs rounded-md px-2 py-1 transition-colors",
-                      sprint.status === "active"
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "text-[#666666] hover:bg-muted/60 hover:text-[#222222]"
-                    )}
-                    title="ไปที่ Board"
+                  <div
+                    className="mb-1 flex w-full items-start justify-between gap-2 text-left cursor-pointer"
+                    onClick={() => toggleSprintCollapsed(sprint.id)}
                   >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Go to Board</span>
-                  </Link>
-                </div>
-              </div>
-              <DroppableSprint id={sprint.id} isBacklog={false}>
-                <SortableContext
-                  items={(filteredTasksBySprint[sprint.id] ?? []).map((task) => task.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div className="space-y-2">
-                    {(filteredTasksBySprint[sprint.id] ?? []).map((task) => (
-                      <DraggableTask key={task.id} task={task} onClick={handleCardClick} epicLabel={task.epic_id ? epicLabelMap[task.epic_id] ?? null : null} />
-                    ))}
+                    <div className="flex flex-1 items-start gap-2">
+                      {collapsed ? (
+                        <ChevronRight className="mt-0.5 h-3.5 w-3.5 text-[#9E9E9E]" />
+                      ) : (
+                        <ChevronDown className="mt-0.5 h-3.5 w-3.5 text-[#9E9E9E]" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-[#222222]">
+                          {sprint.name}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-[#666666]">
+                          {sprint.start_date && sprint.end_date
+                            ? `${sprint.start_date} – ${sprint.end_date}`
+                            : "ยังไม่กำหนดช่วงเวลา"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      {sprint.status === "planned" && (
+                        <Button
+                        size="sm"
+                        className="h-7 px-2 text-[11px]"
+                        variant="secondary"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleStartSprint(sprint.id);
+                          }}
+                        >
+                          Start
+                        </Button>
+                      )}
+                      {sprint.status === "active" && (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                          Active
+                        </span>
+                      )}
+                      {sprint.status === "completed" && (
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-[#666666]">
+                          Done
+                        </span>
+                      )}
+                      <Link
+                        href={`/projects/${projectId}/board/${sprint.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] transition-colors",
+                          sprint.status === "active"
+                            ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                            : "text-[#666666] hover:bg-muted/60 hover:text-[#222222]"
+                        )}
+                        title="ไปที่ Board"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Go to Board</span>
+                      </Link>
+                    </div>
                   </div>
-                </SortableContext>
-              </DroppableSprint>
-              {creatingIn === sprint.id ? (
-                <div className="mt-2 flex gap-1">
-                  <Input
-                    autoFocus
-                    value={newCardTitle}
-                    onChange={(e) => setNewCardTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleCreateCard(sprint.id);
-                      }
-                      if (e.key === "Escape") setCreatingIn(null);
-                    }}
-                    placeholder="ชื่อ Task..."
-                    className="text-sm h-9"
-                  />
-                  <Button size="sm" onClick={() => handleCreateCard(sprint.id)} disabled={!newCardTitle.trim()}>
-                    บันทึก
-                  </Button>
+
+                  {!collapsed && (
+                    <>
+                      <DroppableSprint id={sprint.id} isBacklog={false}>
+                        <SortableContext
+                          items={(filteredTasksBySprint[sprint.id] ?? []).map(
+                            (task) => task.id
+                          )}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <div className="space-y-1.5">
+                            {(filteredTasksBySprint[sprint.id] ?? []).map((task) => (
+                              <DraggableTask
+                                key={task.id}
+                                task={task}
+                                onClick={handleCardClick}
+                                epicLabel={
+                                  task.epic_id ? epicLabelMap[task.epic_id] ?? null : null
+                                }
+                              />
+                            ))}
+                          </div>
+                        </SortableContext>
+                      </DroppableSprint>
+
+                      {creatingIn === sprint.id ? (
+                        <div className="mt-2 flex gap-1">
+                          <Input
+                            autoFocus
+                            value={newCardTitle}
+                            onChange={(e) => setNewCardTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleCreateCard(sprint.id);
+                              }
+                              if (e.key === "Escape") setCreatingIn(null);
+                            }}
+                            placeholder="ชื่อ Task..."
+                            className="h-8 text-xs"
+                          />
+                          <Button
+                            size="sm"
+                            className="h-7 px-2 text-[11px]"
+                            onClick={() => handleCreateCard(sprint.id)}
+                            disabled={!newCardTitle.trim()}
+                          >
+                            บันทึก
+                          </Button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setCreatingIn(sprint.id)}
+                          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed py-1.5 px-3 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          + Add Card
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setCreatingIn(sprint.id)}
-                  className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground border border-dashed rounded-md py-2 px-3 w-full justify-center"
-                >
-                  + Add Card
-                </button>
-              )}
-            </div>
-          ))}
+              );
+            })}
+          </div>
         </div>
 
         <DragOverlay dropAnimation={null}>

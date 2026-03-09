@@ -583,13 +583,144 @@ export function TaskModal({
               )}
             </div>
           </div>
-          {(!isEditMode) ? (
-            <div className="flex min-h-full flex-col gap-4">
-              <h3 className="text-base font-semibold">{task.title}</h3>
-              {description && !isRichTextEmpty(description) && (
-                <RichTextViewer html={description} className="text-sm" />
-              )}
-              <div className="flex gap-2 pt-4">
+          {!isEditMode ? (
+            <div className="min-h-full">
+              <div className="grid gap-6 md:grid-cols-[minmax(0,1.8fr)_minmax(260px,0.9fr)]">
+                {/* ซ้าย: ชื่อ + รายละเอียด */}
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-[#222222]">
+                      {task.title}
+                    </h3>
+                    {description && !isRichTextEmpty(description) && (
+                      <div className="mt-2 rounded-lg border bg-card/40 px-4 py-3">
+                        <RichTextViewer html={description} className="text-sm leading-6" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ขวา: ข้อมูลการ์ดแบบ summary */}
+                <aside className="space-y-3 rounded-xl border bg-card/60 p-4 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      สถานะ
+                    </span>
+                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium capitalize">
+                      {task.status.replace("_", " ")}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      ความสำคัญ
+                    </span>
+                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium capitalize">
+                      {task.priority}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      ประเภท
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+                      {(() => {
+                        const meta = getTaskTypeMeta(task.type);
+                        const Icon = meta.icon;
+                        return (
+                          <>
+                            <Icon className="h-3.5 w-3.5" />
+                            {meta.label}
+                          </>
+                        );
+                      })()}
+                    </span>
+                  </div>
+
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      ผู้รับผิดชอบ
+                    </span>
+                    <span className="inline-flex max-w-[160px] items-center justify-end gap-2 text-xs">
+                      {users.find((u) => u.id === task.assignee_id) ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 font-medium">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#E0E0E0] text-[10px]">
+                            {users
+                              .find((u) => u.id === task.assignee_id)!
+                              .name.charAt(0)
+                              .toUpperCase()}
+                          </span>
+                          <span className="max-w-[110px] truncate">
+                            {users.find((u) => u.id === task.assignee_id)!.name}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">ยังไม่ระบุ</span>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Epic
+                    </span>
+                    <div className="flex max-w-[180px] flex-wrap justify-end gap-1 text-xs">
+                      {task.epic_id ? (
+                        <span className="inline-flex rounded-full bg-muted px-2 py-0.5 font-medium">
+                          {[
+                            ...squadEpics,
+                            ...globalEpics,
+                          ].find((e) => e.id === task.epic_id)?.title ?? "Epic"}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">ยังไม่ระบุ</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Parent
+                    </span>
+                    <div className="max-w-[180px] text-right text-xs">
+                      {task.parent_id ? (
+                        <span className="line-clamp-2 text-ellipsis">
+                          {availableTasks.find((p) => p.id === task.parent_id)?.title ??
+                            "—"}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">ไม่มี</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Tags
+                    </span>
+                    <div className="flex max-w-[200px] flex-wrap justify-end gap-1">
+                      {(task.tags ?? []).length === 0 ? (
+                        <span className="text-xs text-muted-foreground">ยังไม่มี</span>
+                      ) : (
+                        task.tags.slice(0, 4).map((tag) => (
+                          <span
+                            key={tag}
+                            className={cn(
+                              "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium",
+                              getTagClassName(tag)
+                            )}
+                          >
+                            {tag}
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </aside>
+              </div>
+
+              <div className="mt-6 flex gap-2">
                 <Button type="button" onClick={() => setIsEditMode(true)} className="gap-1.5">
                   <Pencil className="h-3.5 w-3.5" />
                   แก้ไข
