@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Project } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -11,14 +12,31 @@ import { Modal } from "@/components/ui/modal";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Plus } from "lucide-react";
+import { ProjectSearchBar } from "./ProjectSearchBar";
+import { parseProjectFilterFromSearchParams } from "@/lib/search-filter";
 
 export function ProjectList() {
+  const searchParams = useSearchParams();
+  const filter = useMemo(
+    () => parseProjectFilterFromSearchParams(searchParams),
+    [searchParams]
+  );
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [creating, setCreating] = useState(false);
+
+  const filteredProjects = useMemo(() => {
+    if (!filter.q.trim()) return projects;
+    const q = filter.q.trim().toLowerCase();
+    return projects.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.description ?? "").toLowerCase().includes(q)
+    );
+  }, [projects, filter.q]);
 
   const fetchProjects = useCallback(async () => {
     const supabase = createClient();
@@ -118,15 +136,21 @@ export function ProjectList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <ProjectSearchBar />
         <Button onClick={() => setShowCreateModal(true)} size="sm" className="gap-2">
           <Plus className="h-4 w-4" />
           สร้าง Squad
         </Button>
       </div>
       {createModal}
+      {filteredProjects.length === 0 ? (
+        <p className="text-muted-foreground py-6 text-center">
+          ไม่พบ Squad ที่ตรงกับคำค้นหา — ลองเปลี่ยนคำหรือล้างตัวกรอง
+        </p>
+      ) : (
       <ul className={cn("grid grid-cols-1 gap-4 xl:grid-cols-3 md:grid-cols-2")}>
-      {projects.map((p) => (
+      {filteredProjects.map((p) => (
         <li
           key={p.id}
           className="card flex min-h-[190px] flex-col justify-between p-5"
@@ -154,6 +178,7 @@ export function ProjectList() {
         </li>
       ))}
       </ul>
+      )}
     </div>
   );
 }
