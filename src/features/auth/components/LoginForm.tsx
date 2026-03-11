@@ -29,6 +29,8 @@ export function LoginForm() {
       setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
       return;
     }
+    // รอให้ Supabase เขียน session ลง cookie ก่อน redirect (แก้ปัญหา session ไม่ persist ตอนเปลี่ยนหน้า)
+    await new Promise((r) => setTimeout(r, 150));
     window.location.assign(from);
   };
 
