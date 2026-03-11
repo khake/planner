@@ -5,6 +5,7 @@ node_modules
 
 # Build
 .next
+src/generated/build-info.json
 out
 build
 dist

@@ -1,3 +1,5 @@
+import { getBuildInfo } from "@/lib/build-info";
+
 function formatBuildTime(value?: string | null) {
   if (!value) return null;
 
@@ -10,38 +12,19 @@ function formatBuildTime(value?: string | null) {
   }).format(date);
 }
 
-function getBuildMeta() {
-  const version =
-    process.env.NEXT_PUBLIC_APP_VERSION ??
-    process.env.npm_package_version ??
-    "dev";
-  const commit =
-    process.env.NEXT_PUBLIC_GIT_SHA ??
-    process.env.AWS_COMMIT_ID ??
-    null;
-  const branch = process.env.NEXT_PUBLIC_APP_BRANCH ?? process.env.AWS_BRANCH ?? null;
-  const buildTime = formatBuildTime(process.env.NEXT_PUBLIC_BUILD_TIME ?? null);
-
-  return {
-    version,
-    commit: commit ? commit.slice(0, 7) : null,
-    branch,
-    buildTime,
-  };
-}
-
 type BuildInfoProps = {
   compact?: boolean;
   className?: string;
 };
 
 export function BuildInfo({ compact = false, className = "" }: BuildInfoProps) {
-  const meta = getBuildMeta();
+  const meta = getBuildInfo();
+  const buildTimeFormatted = formatBuildTime(meta.buildTime || null);
   const parts = [
     `v${meta.version}`,
     meta.commit ? `#${meta.commit}` : null,
     meta.branch ? meta.branch : null,
-    meta.buildTime ? meta.buildTime : null,
+    buildTimeFormatted,
   ].filter(Boolean);
 
   return (
@@ -55,4 +38,3 @@ export function BuildInfo({ compact = false, className = "" }: BuildInfoProps) {
     </div>
   );
 }
-

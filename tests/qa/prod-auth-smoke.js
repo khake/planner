@@ -70,6 +70,22 @@ async function checkNavigation(page, url, label) {
   };
 }
 
+async function fetchBuildInfo() {
+  try {
+    const res = await fetch(`${BASE_URL}/api/build-info`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      version: data.version ?? null,
+      commit: data.commit ?? null,
+      branch: data.branch ?? null,
+      buildTime: data.buildTime ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: HEADLESS });
   const context = await browser.newContext();
@@ -81,6 +97,8 @@ async function main() {
       consoleErrors.push(msg.text());
     }
   });
+
+  const buildInfo = await fetchBuildInfo();
 
   const loginUrl = await login(page);
   const links = await collectProjectLinks(page);
@@ -112,17 +130,31 @@ async function main() {
     checks.push(await checkNavigation(page, directBacklogUrl, "directBacklog"));
   }
 
+  const expectVersion = process.env.QA_EXPECT_VERSION;
+  const versionOk =
+    !expectVersion ||
+    !buildInfo?.version ||
+    buildInfo.version === expectVersion ||
+    String(buildInfo.version).startsWith(String(expectVersion));
+  const versionMismatch = expectVersion && buildInfo?.version && !versionOk;
+
   const result = {
     baseUrl: BASE_URL,
+    buildInfo,
     loginUrlAfterAuth: loginUrl,
     discoveredLinks: links,
     checks,
     consoleErrors,
+    ...(expectVersion && {
+      expectVersion,
+      versionMismatch: versionMismatch || null,
+    }),
   };
 
   console.log(JSON.stringify(result, null, 2));
 
-  const hasFailure = checks.some((item) => item.redirectedToLogin);
+  const hasFailure =
+    checks.some((item) => item.redirectedToLogin) || versionMismatch;
   await browser.close();
   process.exit(hasFailure ? 2 : 0);
 }
