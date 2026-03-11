@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -H 0.0.0.0",
-    "build": "next build",
+    "build": "node scripts/build-with-env.js",
     "start": "next start",
     "lint": "next lint",
     "qa:prod-auth": "node tests/qa/prod-auth-smoke.js",

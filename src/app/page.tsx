@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { redirectAuthenticatedUser } from "@/lib/auth/server";
+import { BuildInfo } from "@/components/build-info";
 
 export default async function HomePage() {
   await redirectAuthenticatedUser("/projects");
@@ -14,6 +15,7 @@ export default async function HomePage() {
       <Link href="/projects">
         <Button>ไปที่โปรเจค</Button>
       </Link>
+      <BuildInfo compact className="mt-6" />
     </main>
   );
 }
