@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "qa:prod-auth": "node tests/qa/prod-auth-smoke.js",
     "db:migrate": "node scripts/run-migration.js",
     "db:reset-data": "node scripts/reset-data.js",
     "db:reindex-positions": "node scripts/reindex-task-positions.js",
