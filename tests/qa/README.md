@@ -15,6 +15,7 @@ node tests/qa/prod-auth-smoke.js
 
 - `QA_HEADLESS=false` เพื่อเปิด browser ให้เห็นตอนรัน
 - `QA_DIRECT_BACKLOG_URL="https://planner.a-coder.com/projects/<id>/backlog"` เพื่อบังคับทดสอบ backlog URL ที่ต้องการ
+- `QA_EXPECT_VERSION="0.1.0"` ถ้าตั้งค่า สคริปต์จะเช็คว่า build info บนเว็บตรงกับเวอร์ชันที่คาดหวังหรือไม่ ถ้าไม่ตรงจะ exit code 2
 
 ## สิ่งที่สคริปต์เช็ก
 
@@ -22,6 +23,7 @@ node tests/qa/prod-auth-smoke.js
 - เข้า `/projects` ได้หรือไม่
 - คลิกเข้า `project detail` และ `backlog` แล้วถูกเด้งกลับ `/login` หรือไม่
 - direct navigation ไปหน้า backlog หลัง login แล้วมีปัญหาหรือไม่
+- **Build info** — ดึงจาก `/api/build-info` (single source เดียวกับ BuildInfo บนหน้าเว็บ)
 
 สคริปต์จะ print ผลลัพธ์เป็น JSON และออกด้วย exit code:
 
