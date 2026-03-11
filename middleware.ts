@@ -1,8 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 import {
-  getDiagnosticErrorPayload,
   logAuthDiagnostic,
 } from "@/lib/auth/diagnostics";
 import { updateSession } from "@/lib/supabase/middleware";
@@ -29,57 +27,16 @@ export async function middleware(request: NextRequest) {
     pathname === "/epics" ||
     pathname.startsWith("/epics/");
 
+  const { response, userId, claimsSub } = await updateSession(request);
+
   if (!isProtected) {
-    return updateSession(request);
+    return response;
   }
 
-  let response = NextResponse.next({
-    request,
-  });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
-          });
-        },
-      },
-    }
-  );
-
-  let claimsSub: string | undefined;
-
-  try {
-    // อย่าแทรก logic ระหว่าง createServerClient กับการ validate session
-    const { data, error } = await supabase.auth.getClaims();
-
-    if (error) {
-      logAuthDiagnostic("warn", "middleware.protected.claims_error", request, {
-        error: getDiagnosticErrorPayload(error),
-      });
-    }
-
-    claimsSub = data?.claims?.sub;
-  } catch (error) {
-    logAuthDiagnostic("error", "middleware.protected.claims_exception", request, {
-      error: getDiagnosticErrorPayload(error),
-    });
-  }
-
-  if (!claimsSub) {
+  if (!userId) {
     logAuthDiagnostic("warn", "middleware.protected.redirect_to_login", request, {
-      reason: "missing_claims_sub",
+      reason: "missing_user_after_get_user",
+      claimsSub: claimsSub ?? null,
       redirectTo: "/login",
       from: pathname,
     });
