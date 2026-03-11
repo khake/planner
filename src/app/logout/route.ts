@@ -1,9 +1,12 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { logAuthDiagnostic } from "@/lib/auth/diagnostics";
 import { buildRequestUrl } from "@/lib/request-url";
 
 export async function GET(request: NextRequest) {
+  logAuthDiagnostic("info", "logout.requested", request);
+
   const url = buildRequestUrl("/login", request);
   const res = NextResponse.redirect(url);
 
@@ -26,6 +29,10 @@ export async function GET(request: NextRequest) {
 
   // ออกจากระบบ Supabase เท่านั้น
   await supabase.auth.signOut();
+
+  logAuthDiagnostic("info", "logout.completed", request, {
+    redirectTo: "/login",
+  });
 
   return res;
 }
