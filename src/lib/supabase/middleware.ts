@@ -35,20 +35,47 @@ export async function updateSession(request: NextRequest) {
   );
 
   // สำคัญมากสำหรับ SSR: ให้ middleware เป็นจุดกลางในการ refresh/validate session
+  let claimsSub: string | undefined;
   try {
-    const { error } = await supabase.auth.getClaims();
+    const { data, error } = await supabase.auth.getClaims();
 
     if (error) {
       logAuthDiagnostic("warn", "middleware.public.refresh_failed", request, {
         error: getDiagnosticErrorPayload(error),
       });
     }
+
+    claimsSub = data?.claims?.sub;
   } catch (error) {
     logAuthDiagnostic("error", "middleware.public.refresh_exception", request, {
       error: getDiagnosticErrorPayload(error),
     });
   }
 
-  return supabaseResponse;
+  let userId: string | undefined;
+  try {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+
+    if (error) {
+      logAuthDiagnostic("warn", "middleware.public.get_user_error", request, {
+        error: getDiagnosticErrorPayload(error),
+      });
+    }
+
+    userId = user?.id;
+  } catch (error) {
+    logAuthDiagnostic("error", "middleware.public.get_user_exception", request, {
+      error: getDiagnosticErrorPayload(error),
+    });
+  }
+
+  return {
+    response: supabaseResponse,
+    userId,
+    claimsSub,
+  };
 }
 
