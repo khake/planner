@@ -29,7 +29,7 @@ Amplify เชื่อมกับ GitHub แล้ว build + deploy อัต
    - กด **Next**
 
 4. **ตั้งค่า Build**
-   - Amplify มักจะ **detect เป็น Next.js อัตโนมัติ** — ถ้าเห็นว่าเป็น Next.js แล้ว ไม่ต้องแก้ build settings
+   - โปรเจกต์มี `amplify.yml` ใน root — Amplify จะใช้ build spec นี้โดยอัตโนมัติ
    - ถ้าไม่ detect หรือ build ล้ม ให้ใช้ build settings ด้านล่าง (กด **Edit** ที่ส่วน build settings):
 
    ```yaml
@@ -68,6 +68,11 @@ Amplify เชื่อมกับ GitHub แล้ว build + deploy อัต
      - `APP_LOGIN_USER` (ถ้าใช้)
      - `APP_LOGIN_PASSWORD` (ถ้าใช้)
    - **อย่า** commit ค่าเหล่านี้ใน repo
+
+   **Build Info (อัตโนมัติ)** — ไม่ต้องตั้งเอง
+   - `scripts/build-with-env.js` จะ inject เวอร์ชัน/commit/branch/เวลา build ให้อัตโนมัติ
+   - Amplify ตั้ง `AWS_COMMIT_ID`, `AWS_BRANCH` ให้ระหว่าง build → ระบบใช้ค่าดังกล่าว
+   - ถ้าต้องการ override version: ตั้ง `NEXT_PUBLIC_APP_VERSION` ได้ (เช่น `0.1.0`)
 
 6. **Deploy**
    - กด **Save and deploy**

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { BuildInfo } from "@/components/build-info";
 import {
   getSidebarItems,
   type SidebarKey,
@@ -109,6 +110,9 @@ export function AppShell({
               });
             })()}
           </nav>
+          <div className="border-t border-[#E8E8E8] px-4 py-4">
+            <BuildInfo />
+          </div>
         </aside>
 
         <div className="min-w-0 flex-1">
@@ -140,7 +144,12 @@ export function AppShell({
             </div>
           </header>
 
-          <main className="px-5 py-6 lg:px-8 lg:py-8">{children}</main>
+          <main className="px-5 py-6 lg:px-8 lg:py-8">
+            {children}
+            <div className="mt-8 lg:hidden">
+              <BuildInfo compact />
+            </div>
+          </main>
         </div>
       </div>
     </div>

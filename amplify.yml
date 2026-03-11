@@ -1,0 +1,26 @@
+version: 1
+applications:
+  - appRoot: .
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - npm ci
+        build:
+          commands:
+            # Amplify ตั้ง AWS_COMMIT_ID, AWS_BRANCH ให้อัตโนมัติ
+            # npm run build จะใช้ scripts/build-with-env.js ซึ่ง inject
+            # NEXT_PUBLIC_BUILD_TIME, NEXT_PUBLIC_GIT_SHA, NEXT_PUBLIC_APP_BRANCH
+            - npm run build
+      artifacts:
+        baseDirectory: .next
+        files:
+          - "**/*"
+      cache:
+        paths:
+          - node_modules/**/*
+    customHeaders:
+      - pattern: "**"
+        headers:
+          - key: "Strict-Transport-Security"
+            value: "max-age=31536000; includeSubDomains"
