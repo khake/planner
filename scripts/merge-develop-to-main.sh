@@ -23,8 +23,13 @@ git checkout main
 git pull origin main
 
 echo ""
-echo "🔀 Merge develop เข้า main..."
-git merge origin/develop -m "Merge develop into main"
+# ใช้ commit message ล่าสุดจาก develop เพื่อให้เห็นว่า deploy อะไรขึ้น prod
+LAST_MSG=$(git log origin/develop -1 --pretty=%s)
+if [[ -z "$LAST_MSG" ]]; then
+  LAST_MSG="Merge develop into main"
+fi
+echo "🔀 Merge develop เข้า main (message: $LAST_MSG)..."
+git merge origin/develop -m "Merge develop: $LAST_MSG"
 
 echo ""
 echo "📤 Push main ไปที่ origin..."

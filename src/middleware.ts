@@ -25,6 +25,7 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/api/activity-log") || // ใช้ user แบบ optional
+    pathname.startsWith("/api/build-info") || // ใช้เช็คเวอร์ชัน / QA โดยไม่ต้อง login
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
     pathname.startsWith("/assets");
