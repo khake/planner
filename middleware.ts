@@ -1,14 +1,14 @@
-import { createServerClient } from "@supabase/ssr";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import {
+  getDiagnosticErrorPayload,
+  logAuthDiagnostic,
+} from "@/lib/auth/diagnostics";
+import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  // หน้าแรกให้เข้าชมได้โดยไม่ต้อง login
-  if (pathname === "/") {
-    return NextResponse.next();
-  }
 
   // allow assets and public paths
   if (
@@ -19,12 +19,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // login / register ไม่ต้องเช็ก session
-  if (pathname === "/login" || pathname.startsWith("/login") || pathname.startsWith("/register")) {
-    return NextResponse.next();
-  }
-
-  // paths เหล่านี้ต้อง login ก่อน (กด "ไปที่ Squads" แล้วจะถูกส่งไป login)
   const isProtected =
     pathname === "/projects" ||
     pathname.startsWith("/projects/") ||
@@ -36,7 +30,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/epics/");
 
   if (!isProtected) {
-    return NextResponse.next();
+    return updateSession(request);
   }
 
   let response = NextResponse.next({
@@ -52,23 +46,43 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({
             request,
           });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+          });
         },
       },
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let claimsSub: string | undefined;
 
-  if (!user) {
+  try {
+    // อย่าแทรก logic ระหว่าง createServerClient กับการ validate session
+    const { data, error } = await supabase.auth.getClaims();
+
+    if (error) {
+      logAuthDiagnostic("warn", "middleware.protected.claims_error", request, {
+        error: getDiagnosticErrorPayload(error),
+      });
+    }
+
+    claimsSub = data?.claims?.sub;
+  } catch (error) {
+    logAuthDiagnostic("error", "middleware.protected.claims_exception", request, {
+      error: getDiagnosticErrorPayload(error),
+    });
+  }
+
+  if (!claimsSub) {
+    logAuthDiagnostic("warn", "middleware.protected.redirect_to_login", request, {
+      reason: "missing_claims_sub",
+      redirectTo: "/login",
+      from: pathname,
+    });
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("from", pathname);
@@ -79,7 +93,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // ต้อง run middleware ทุก path ที่อาจเป็น protected
-  matcher: ["/", "/projects", "/projects/(.*)", "/profile", "/profile/(.*)", "/tickets", "/tickets/(.*)", "/epics", "/epics/(.*)"],
+  // ให้ middleware ช่วย refresh session ในทุกหน้าที่เป็น app route
+  matcher: ["/", "/login", "/register", "/projects", "/projects/(.*)", "/profile", "/profile/(.*)", "/tickets", "/tickets/(.*)", "/epics", "/epics/(.*)"],
 };
 

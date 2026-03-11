@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const from = searchParams.get("from") || "/projects";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,7 +30,7 @@ function LoginForm() {
       setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
       return;
     }
-    router.push(from);
+    window.location.assign(from);
   };
 
   return (
