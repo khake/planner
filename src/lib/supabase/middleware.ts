@@ -36,23 +36,39 @@ export async function updateSession(request: NextRequest) {
 
   // สำคัญมากสำหรับ SSR: ให้ middleware เป็นจุดกลางในการ refresh/validate session
   let claimsSub: string | undefined;
+  let userId: string | undefined;
+  let hasRefreshError = false;
+
   try {
     const { data, error } = await supabase.auth.getClaims();
-
     if (error) {
+      const err = error as { code?: string; message?: string };
+      if (
+        err?.code === "refresh_token_not_found" ||
+        err?.code === "invalid_refresh_token" ||
+        err?.message?.includes("Refresh Token")
+      ) {
+        hasRefreshError = true;
+      }
       logAuthDiagnostic("warn", "middleware.public.refresh_failed", request, {
         error: getDiagnosticErrorPayload(error),
       });
     }
-
     claimsSub = data?.claims?.sub;
   } catch (error) {
-    logAuthDiagnostic("error", "middleware.public.refresh_exception", request, {
+    const err = error as { code?: string; message?: string };
+    if (
+      err?.code === "refresh_token_not_found" ||
+      err?.code === "invalid_refresh_token" ||
+      err?.message?.includes("Refresh Token")
+    ) {
+      hasRefreshError = true;
+    }
+    logAuthDiagnostic("warn", "middleware.public.refresh_exception", request, {
       error: getDiagnosticErrorPayload(error),
     });
   }
 
-  let userId: string | undefined;
   try {
     const {
       data: { user },
@@ -60,16 +76,38 @@ export async function updateSession(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (error) {
+      const err = error as { code?: string; message?: string };
+      if (
+        err?.code === "refresh_token_not_found" ||
+        err?.code === "invalid_refresh_token" ||
+        err?.message?.includes("Refresh Token") ||
+        err?.message?.includes("Auth session missing")
+      ) {
+        hasRefreshError = true;
+      }
       logAuthDiagnostic("warn", "middleware.public.get_user_error", request, {
         error: getDiagnosticErrorPayload(error),
       });
     }
-
     userId = user?.id;
   } catch (error) {
-    logAuthDiagnostic("error", "middleware.public.get_user_exception", request, {
+    const err = error as { code?: string; message?: string };
+    if (
+      err?.code === "refresh_token_not_found" ||
+      err?.code === "invalid_refresh_token" ||
+      err?.message?.includes("Refresh Token") ||
+      err?.message?.includes("Auth session missing")
+    ) {
+      hasRefreshError = true;
+    }
+    logAuthDiagnostic("warn", "middleware.public.get_user_exception", request, {
       error: getDiagnosticErrorPayload(error),
     });
+  }
+
+  // ล้าง cookie ที่ไม่ valid เพื่อไม่ให้ retry วนซ้ำทุก request
+  if (hasRefreshError) {
+    await supabase.auth.signOut({ scope: "local" });
   }
 
   return {

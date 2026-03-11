@@ -51,6 +51,20 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   // ให้ middleware ช่วย refresh session ในทุกหน้าที่เป็น app route
-  matcher: ["/", "/login", "/register", "/projects", "/projects/(.*)", "/profile", "/profile/(.*)", "/tickets", "/tickets/(.*)", "/epics", "/epics/(.*)"],
+  // /api/build-info เป็น public สำหรับเช็คเวอร์ชันและ QA
+  matcher: [
+    "/",
+    "/login",
+    "/register",
+    "/api/build-info",
+    "/projects",
+    "/projects/(.*)",
+    "/profile",
+    "/profile/(.*)",
+    "/tickets",
+    "/tickets/(.*)",
+    "/epics",
+    "/epics/(.*)",
+  ],
 };
 
