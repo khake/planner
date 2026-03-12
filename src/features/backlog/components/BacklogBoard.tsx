@@ -664,14 +664,18 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      handleCreateCard(null);
+                      void handleCreateCard(null);
                     }
                     if (e.key === "Escape") setCreatingIn(null);
                   }}
                   placeholder="ชื่อ Task..."
                   className="text-sm h-9"
                 />
-                <Button size="sm" onClick={() => handleCreateCard(null)} disabled={!newCardTitle.trim()}>
+                <Button
+                  size="sm"
+                  onClick={() => void handleCreateCard(null)}
+                  disabled={!newCardTitle.trim()}
+                >
                   บันทึก
                 </Button>
               </div>
@@ -801,7 +805,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
                             onKeyDown={(e) => {
                               if (e.key === "Enter") {
                                 e.preventDefault();
-                                handleCreateCard(sprint.id);
+                                void handleCreateCard(sprint.id);
                               }
                               if (e.key === "Escape") setCreatingIn(null);
                             }}
@@ -811,7 +815,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
                           <Button
                             size="sm"
                             className="h-7 px-2 text-[11px]"
-                            onClick={() => handleCreateCard(sprint.id)}
+                            onClick={() => void handleCreateCard(sprint.id)}
                             disabled={!newCardTitle.trim()}
                           >
                             บันทึก
