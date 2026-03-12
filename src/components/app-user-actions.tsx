@@ -11,7 +11,7 @@ export async function AppUserActions() {
           โปรไฟล์
         </Button>
       </Link>
-      <Link href="/logout">
+      <Link href="/logout" prefetch={false}>
         <Button variant="ghost" size="sm">
           Logout
         </Button>

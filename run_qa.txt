@@ -1,0 +1,4 @@
+QA_BASE_URL="https://planner.a-coder.com" \
+QA_EMAIL="bugfiring@gmail.com" \
+QA_PASSWORD="123456" \
+npm run qa:prod-auth
