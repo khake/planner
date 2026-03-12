@@ -47,9 +47,9 @@ export function KanbanLane({
       <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
         <div className="space-y-2 flex-1">
           {tasks.map((task) => {
-            const qaUser =
-              task.qa_assignee_id &&
-              users.find((u) => u.id === task.qa_assignee_id);
+            const qaUser = task.qa_assignee_id
+              ? users.find((u) => u.id === task.qa_assignee_id) ?? null
+              : null;
             return (
               <TaskCard
                 key={task.id}
