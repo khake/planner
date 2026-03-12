@@ -16,6 +16,8 @@ type KanbanLaneProps = {
   epicLabelMap?: Record<string, string>;
   onCardClick: (task: TaskWithAssignee) => void;
   onCardDoubleClick?: (task: TaskWithAssignee) => void;
+  /** โปรไฟล์สมาชิกทั้งหมดของ Squad เพื่อ map หา QA assignee */
+  users?: { id: string; name: string; avatar_url: string | null }[];
 };
 
 export function KanbanLane({
@@ -27,6 +29,7 @@ export function KanbanLane({
   epicLabelMap = {},
   onCardClick,
   onCardDoubleClick,
+  users = [],
 }: KanbanLaneProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `lane-${id}` });
 
@@ -43,17 +46,23 @@ export function KanbanLane({
       </h3>
       <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
         <div className="space-y-2 flex-1">
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              attachmentCount={attachmentCounts[task.id] ?? 0}
-              coverImageUrl={coverImageByTask[task.id]}
-              epicLabel={task.epic_id ? epicLabelMap[task.epic_id] ?? null : null}
-              onClick={() => onCardClick(task)}
-              onDoubleClick={() => onCardDoubleClick?.(task)}
-            />
-          ))}
+          {tasks.map((task) => {
+            const qaUser =
+              task.qa_assignee_id &&
+              users.find((u) => u.id === task.qa_assignee_id);
+            return (
+              <TaskCard
+                key={task.id}
+                task={task}
+                attachmentCount={attachmentCounts[task.id] ?? 0}
+                coverImageUrl={coverImageByTask[task.id]}
+                epicLabel={task.epic_id ? epicLabelMap[task.epic_id] ?? null : null}
+                qaAssigneeName={qaUser?.name ?? null}
+                onClick={() => onCardClick(task)}
+                onDoubleClick={() => onCardDoubleClick?.(task)}
+              />
+            );
+          })}
         </div>
       </SortableContext>
     </div>

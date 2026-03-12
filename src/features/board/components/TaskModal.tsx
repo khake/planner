@@ -4,13 +4,22 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { createClient, handleAuthErrorAndRedirect } from "@/lib/supabase/client";
-import type { TaskStatus, TaskPriority, TaskType, Task, TaskWithAssignee, Attachment, Epic } from "@/types";
+import type {
+  TaskStatus,
+  TaskPriority,
+  TaskType,
+  Task,
+  TaskWithAssignee,
+  Attachment,
+  Epic,
+  QaChecklistItem,
+} from "@/types";
 import { fetchSquadEpics, fetchGlobalEpics } from "@/lib/epic";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MarkdownEditor } from "@/components/markdown-editor";
 import { MarkdownViewer } from "@/components/markdown-viewer";
+import { MarkdownField } from "@/components/markdown-field";
 import { getTagClassName, getTaskTypeMeta, normalizeTaskTag } from "@/lib/task-ui";
 import { cn } from "@/lib/utils";
 import { Paperclip, Download, Trash2, Image as ImageIcon, FileText, File, X, Maximize2, MessageCircle, Send, Plus, XCircle, Copy, ExternalLink, Pencil } from "lucide-react";
@@ -136,7 +145,25 @@ function ImagePreviewModal({
   );
 }
 
-const STATUS_OPTIONS: TaskStatus[] = ["backlog", "todo", "in_progress", "review", "done"];
+const STATUS_OPTIONS: TaskStatus[] = [
+  "backlog",
+  "todo",
+  "in_progress",
+  "ready_for_qa",
+  "qa_in_progress",
+  "review",
+  "done",
+];
+
+const STATUS_BADGE_CLASS: Record<TaskStatus, string> = {
+  backlog: "bg-gray-100 text-gray-700",
+  todo: "bg-gray-100 text-gray-700",
+  in_progress: "bg-sky-100 text-sky-700",
+  ready_for_qa: "bg-violet-100 text-violet-700",
+  qa_in_progress: "bg-orange-100 text-orange-700",
+  review: "bg-slate-100 text-slate-700",
+  done: "bg-emerald-100 text-emerald-700",
+};
 const PRIORITY_OPTIONS: TaskPriority[] = ["low", "medium", "high", "urgent"];
 const TYPE_OPTIONS: TaskType[] = ["story", "task", "bug", "subtask"];
 
@@ -195,6 +222,13 @@ export function TaskModal({
   const supabase = createClient();
   const canSendComment = newComment.trim().length > 0;
   const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
+  const [qaAssigneeId, setQaAssigneeId] = useState<string>(task.qa_assignee_id ?? "");
+  const [qaStatus, setQaStatus] = useState<"pending" | "passed" | "failed">(
+    (task.qa_status as "pending" | "passed" | "failed") || "pending"
+  );
+  const [qaChecklist, setQaChecklist] = useState<QaChecklistItem[]>(
+    (task.qa_checklist as QaChecklistItem[] | null) ?? []
+  );
 
   useEffect(() => {
     if (autoFocusDescription && isEditMode && descriptionRef.current) {
@@ -203,6 +237,9 @@ export function TaskModal({
       descriptionRef.current.setSelectionRange(len, len);
     }
   }, [autoFocusDescription, isEditMode]);
+
+  const allChecklistPassed =
+    qaChecklist.length === 0 ? true : qaChecklist.every((item) => item.passed);
 
   const loadAttachments = useCallback(async () => {
     const { data, error } = await supabase
@@ -492,6 +529,9 @@ export function TaskModal({
         priority,
         assignee_id: assigneeId || null,
         epic_id: epicId || null,
+        qa_assignee_id: qaAssigneeId || null,
+        qa_status: qaStatus,
+        qa_checklist: qaChecklist,
       })
       .eq("id", task.id);
     setSaving(false);
@@ -504,6 +544,34 @@ export function TaskModal({
     const { error } = await supabase.from("tasks").delete().eq("id", task.id);
     setDeleting(false);
     if (!error) onDeleted();
+  };
+
+
+  const handleQaApprove = async () => {
+    if (!allChecklistPassed) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("tasks")
+      .update({
+        status: "done" as TaskStatus,
+        qa_status: "passed",
+      })
+      .eq("id", task.id);
+    setSaving(false);
+    if (!error) onSaved();
+  };
+
+  const handleQaReject = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from("tasks")
+      .update({
+        status: "in_progress" as TaskStatus,
+        qa_status: "failed",
+      })
+      .eq("id", task.id);
+    setSaving(false);
+    if (!error) onSaved();
   };
 
   return (
@@ -619,7 +687,12 @@ export function TaskModal({
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       สถานะ
                     </span>
-                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium capitalize">
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize",
+                        STATUS_BADGE_CLASS[task.status]
+                      )}
+                    >
                       {task.status.replace("_", " ")}
                     </span>
                   </div>
@@ -672,6 +745,83 @@ export function TaskModal({
                         <span className="text-muted-foreground">ยังไม่ระบุ</span>
                       )}
                     </span>
+                  </div>
+
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      QA Assignee
+                    </span>
+                    <span className="inline-flex max-w-[160px] items-center justify-end gap-2 text-xs">
+                      {qaAssigneeId ? (
+                        (() => {
+                          const qaUser = users.find((u) => u.id === qaAssigneeId);
+                          if (!qaUser) {
+                            return (
+                              <span className="text-muted-foreground">ไม่พบผู้ใช้ที่เลือก</span>
+                            );
+                          }
+                          return (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 font-medium">
+                              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#E0E0E0] text-[10px]">
+                                {qaUser.name.charAt(0).toUpperCase()}
+                              </span>
+                              <span className="max-w-[110px] truncate">{qaUser.name}</span>
+                            </span>
+                          );
+                        })()
+                      ) : (
+                        <span className="text-muted-foreground">ยังไม่ระบุ</span>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 rounded-lg border bg-background/70 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        QA Status
+                      </span>
+                      <span
+                        className={cn(
+                          "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize",
+                          qaStatus === "passed" && "bg-emerald-50 text-emerald-800 border border-emerald-200",
+                          qaStatus === "failed" && "bg-red-50 text-red-800 border border-red-200",
+                          qaStatus === "pending" &&
+                            "bg-amber-50 text-amber-800 border border-amber-200"
+                        )}
+                      >
+                        {qaStatus}
+                      </span>
+                    </div>
+
+                    <div className="mt-1 space-y-2">
+                      <div className="mt-2 flex flex-col gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="default"
+                          className="w-full justify-center"
+                          disabled={!allChecklistPassed || saving || deleting}
+                          onClick={() => void handleQaApprove()}
+                        >
+                          อนุมัติ (Passed)
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          className="w-full justify-center"
+                          disabled={saving || deleting}
+                          onClick={() => void handleQaReject()}
+                        >
+                          ตีกลับ (Failed)
+                        </Button>
+                        {!allChecklistPassed && qaChecklist.length > 0 && (
+                          <p className="text-[11px] text-amber-700">
+                            ต้องติ๊ก checklist ให้ครบทุกข้อก่อนกด Passed
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex items-start justify-between gap-2">
@@ -761,12 +911,13 @@ export function TaskModal({
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col">
                   <Label htmlFor="modal-desc">รายละเอียด / Requirement</Label>
-                  <MarkdownEditor
+                  <MarkdownField
                     value={description}
+                    editable={isEditMode}
                     onChange={setDescription}
-                    placeholder="พิมพ์ requirement, หมายเหตุ หรือรายละเอียดงาน (Markdown รองรับหัวข้อ, ลิสต์, code block)"
+                    placeholder="พิมพ์ requirement, หมายเหตุ หรือรายละเอียดงาน (รองรับ Markdown เช่น **ตัวหนา**, - list, ~~strike~~)"
                     className="mt-1 flex-1"
-                    textareaRef={descriptionRef}
+                    compact={false}
                     disabled={deleting}
                     submitting={saving}
                   />
@@ -850,6 +1001,132 @@ export function TaskModal({
                       })
                     )}
                   </div>
+                </div>
+                <div className="rounded-lg border bg-background p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-[#222222]">QA Checklist</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        ใช้สำหรับเก็บ acceptance criteria / test case ก่อนจะกด Passed
+                      </p>
+                    </div>
+                  </div>
+                  {qaChecklist.length === 0 ? (
+                    <p className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">
+                      ยังไม่มีรายการ QA checklist
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {qaChecklist.map((item) => (
+                        <div
+                          key={item.id}
+                          className={cn(
+                            "flex items-start gap-3 rounded-md border px-3 py-2 text-sm",
+                            item.passed ? "border-emerald-200 bg-emerald-50/40" : "border-border bg-background"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-1 h-4 w-4 rounded border-input"
+                            checked={item.passed}
+                            disabled={!isEditMode}
+                            onChange={(e) => {
+                              if (!isEditMode) return;
+                              const checked = e.target.checked;
+                              setQaChecklist((current) =>
+                                current.map((q) =>
+                                  q.id === item.id
+                                    ? {
+                                        ...q,
+                                        passed: checked,
+                                      }
+                                    : q
+                                )
+                              );
+                            }}
+                          />
+                          <div className="flex-1">
+                            <MarkdownField
+                              value={item.label}
+                              editable={isEditMode}
+                              compact
+                              placeholder="พิมพ์ QA checklist ด้วย Markdown เช่น - กดปุ่มบันทึกแล้วต้องไม่ error"
+                              className="border-0 bg-transparent px-0 py-0"
+                              onChange={(value) => {
+                                if (!isEditMode) return;
+                                setQaChecklist((current) =>
+                                  current.map((q) =>
+                                    q.id === item.id
+                                      ? {
+                                          ...q,
+                                          label: value,
+                                        }
+                                      : q
+                                  )
+                                );
+                              }}
+                            />
+                          </div>
+                          {isEditMode && (
+                            <button
+                              type="button"
+                              className="mt-1 text-xs text-destructive hover:underline"
+                              onClick={() =>
+                                setQaChecklist((current) => current.filter((q) => q.id !== item.id))
+                              }
+                            >
+                              ลบ
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {isEditMode && (
+                    <div className="mt-3 flex gap-2">
+                      <Input
+                        placeholder="เพิ่ม QA checklist item (Enter เพื่อเพิ่ม)..."
+                        className="flex-1 text-xs"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const value = (e.target as HTMLInputElement).value.trim();
+                            if (!value) return;
+                            const newItem: QaChecklistItem = {
+                              id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                              label: value,
+                              passed: false,
+                            };
+                            setQaChecklist((current) => [...current, newItem]);
+                            (e.target as HTMLInputElement).value = "";
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="brandOutline"
+                        className="whitespace-nowrap"
+                        onClick={(e) => {
+                          const input = (e.currentTarget.previousSibling as HTMLInputElement | null);
+                          if (!input) return;
+                          const value = input.value.trim();
+                          if (!value) return;
+                          const newItem: QaChecklistItem = {
+                            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                            label: value,
+                            passed: false,
+                          };
+                          setQaChecklist((current) => [...current, newItem]);
+                          input.value = "";
+                        }}
+                      >
+                        เพิ่มรายการ
+                      </Button>
+                    </div>
+                  )}
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    ต้องติ๊กผ่านทุกข้อก่อนกด Passed เพื่อให้มั่นใจว่าทดสอบครบแล้ว
+                  </p>
                 </div>
                 <div className="rounded-lg border bg-muted/20 p-4">
                   <Label className="flex items-center gap-1.5">
@@ -1143,6 +1420,25 @@ export function TaskModal({
                     ))}
                   </select>
                 </div>
+                <div>
+                  <Label htmlFor="modal-qa-assignee">QA Assignee</Label>
+                  <select
+                    id="modal-qa-assignee"
+                    value={qaAssigneeId}
+                    onChange={(e) => setQaAssigneeId(e.target.value)}
+                    disabled={saving || deleting}
+                    className={cn(
+                      "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    )}
+                  >
+                    <option value="">— ไม่ระบุ —</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -1294,15 +1590,15 @@ export function TaskModal({
                       <span className="min-w-0 max-w-[160px] truncate">{currentUserName}</span>
                     </div>
                     <div className="min-h-[80px] min-w-0 shrink-0">
-                      <MarkdownEditor
+                      <MarkdownField
                         value={newComment}
+                        editable
                         onChange={setNewComment}
                         placeholder="พิมพ์คอมเมนต์ด้วย Markdown เช่น **ตัวหนา**, - ลิสต์, [ลิงก์](https://...)"
                         className="min-h-0 min-w-0 bg-background"
                         compact
                         disabled={saving || loadingComments}
                         submitting={sendingComment}
-                        onModEnter={() => void handleSendComment()}
                       />
                     </div>
                     <div className="flex shrink-0 justify-end">

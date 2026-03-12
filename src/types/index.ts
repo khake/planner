@@ -7,7 +7,14 @@
 
 export type SprintStatus = "planned" | "active" | "completed";
 
-export type TaskStatus = "backlog" | "todo" | "in_progress" | "review" | "done";
+export type TaskStatus =
+  | "backlog"
+  | "todo"
+  | "in_progress"
+  | "ready_for_qa"
+  | "qa_in_progress"
+  | "review"
+  | "done";
 
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
@@ -88,8 +95,17 @@ export interface Task {
   ticket_number: number;
   ticket_key: string;
   epic_id: string | null;
+  qa_assignee_id?: string | null;
+  qa_status?: "pending" | "passed" | "failed" | null;
+  qa_checklist?: QaChecklistItem[] | null;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface QaChecklistItem {
+  id: string;
+  label: string;
+  passed: boolean;
 }
 
 // ============ Relations (with joined data) ============
@@ -118,6 +134,7 @@ export interface TaskCommentWithUser extends TaskComment {
 
 export interface TaskWithAssignee extends Task {
   assignee?: User | null;
+  // หมายเหตุ: ถ้าต้องการข้อมูลของ QA assignee ให้ใช้ users[] ในหน้า UI map จาก qa_assignee_id
 }
 
 export interface EpicWithProject extends Epic {
