@@ -69,6 +69,11 @@ export async function updateSession(request: NextRequest) {
     });
   }
 
+  const authCookieNames = request.cookies
+    .getAll()
+    .filter((c) => /^sb-.*-auth-token/i.test(c.name))
+    .map((c) => c.name);
+
   try {
     const {
       data: { user },
@@ -85,9 +90,14 @@ export async function updateSession(request: NextRequest) {
       ) {
         hasRefreshError = true;
       }
-      logAuthDiagnostic("warn", "middleware.public.get_user_error", request, {
-        error: getDiagnosticErrorPayload(error),
-      });
+      // ไม่ log เมื่อไม่มี cookie และเป็น Auth session missing (ผู้เยี่ยมชมหน้า public ปกติ)
+      const isNoSessionNoCookie =
+        authCookieNames.length === 0 && err?.message?.includes("Auth session missing");
+      if (!isNoSessionNoCookie) {
+        logAuthDiagnostic("warn", "middleware.public.get_user_error", request, {
+          error: getDiagnosticErrorPayload(error),
+        });
+      }
     }
     userId = user?.id;
   } catch (error) {
@@ -100,9 +110,13 @@ export async function updateSession(request: NextRequest) {
     ) {
       hasRefreshError = true;
     }
-    logAuthDiagnostic("warn", "middleware.public.get_user_exception", request, {
-      error: getDiagnosticErrorPayload(error),
-    });
+    const isNoSessionNoCookie =
+      authCookieNames.length === 0 && err?.message?.includes("Auth session missing");
+    if (!isNoSessionNoCookie) {
+      logAuthDiagnostic("warn", "middleware.public.get_user_exception", request, {
+        error: getDiagnosticErrorPayload(error),
+      });
+    }
   }
 
   // ล้าง cookie ที่ไม่ valid เพื่อไม่ให้ retry วนซ้ำทุก request
