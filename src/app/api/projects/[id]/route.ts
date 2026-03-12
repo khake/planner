@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-export async function DELETE(_request: NextRequest, context) {
-  const projectId = context?.params?.id as string | undefined;
+export async function DELETE(request: NextRequest) {
+  const url = new URL(request.url);
+  const segments = url.pathname.split("/").filter(Boolean);
+  const projectId = segments[segments.length - 1] ?? "";
 
   if (!projectId) {
     return NextResponse.json({ error: "missing_project_id" }, { status: 400 });
