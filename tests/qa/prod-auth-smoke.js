@@ -105,6 +105,21 @@ async function main() {
 
   const checks = [];
 
+  // ตรวจว่าเข้า /projects ได้โดยไม่เด้งไป login
+  checks.push(await checkNavigation(page, `${BASE_URL}/projects`, "projectsPage"));
+
+  // ตรวจว่าเข้า /profile ได้โดยไม่เด้งไป login
+  checks.push(await checkNavigation(page, `${BASE_URL}/profile`, "profilePage"));
+
+  // ตรวจ /projects/[id] — ใช้ id จาก backlog link แรก หรือ QA_PROJECT_ID
+  const projectIdFromBacklog = links.backlogLinks[0]
+    ? links.backlogLinks[0].replace(/.*\/projects\/([^/]+)\/backlog.*/, "$1")
+    : null;
+  const projectId = process.env.QA_PROJECT_ID || projectIdFromBacklog;
+  if (projectId) {
+    checks.push(await checkNavigation(page, `${BASE_URL}/projects/${projectId}`, "projectDetailPage"));
+  }
+
   if (links.backlogLinks[0]) {
     checks.push(await checkNavigation(page, links.backlogLinks[0], "firstBacklog"));
   }
