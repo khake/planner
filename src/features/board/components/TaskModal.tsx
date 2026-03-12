@@ -525,6 +525,7 @@ export function TaskModal({
                 {!isEditMode && (
                   <Button
                     type="button"
+                    variant="outline"
                     size="sm"
                     className="gap-1.5"
                     onClick={() => setIsEditMode(true)}
@@ -721,7 +722,7 @@ export function TaskModal({
               </div>
 
               <div className="mt-6 flex gap-2">
-                <Button type="button" onClick={() => setIsEditMode(true)} className="gap-1.5">
+                <Button type="button" variant="outline" onClick={() => setIsEditMode(true)} className="gap-1.5">
                   <Pencil className="h-3.5 w-3.5" />
                   แก้ไข
                 </Button>

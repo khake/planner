@@ -730,10 +730,9 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
                     <div className="flex shrink-0 flex-col items-end gap-1">
                       {sprint.status === "planned" && (
                         <Button
-                        size="sm"
-                        className="h-7 px-2 text-[11px]"
-                        variant="secondary"
-                        onClick={(e) => {
+                          size="sm"
+                          className="h-7 px-2 text-[11px]"
+                          onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             handleStartSprint(sprint.id);

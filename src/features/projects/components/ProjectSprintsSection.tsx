@@ -49,7 +49,7 @@ export function ProjectSprintsSection({
     <section>
       <div className="flex items-center justify-between gap-3 mb-3">
         <h2 className="text-lg font-semibold">สปรินต์</h2>
-        <Button variant="outline" size="sm" onClick={() => setShowCreateModal(true)}>
+        <Button size="sm" onClick={() => setShowCreateModal(true)}>
           สร้างสปรินต์
         </Button>
       </div>
@@ -74,7 +74,7 @@ export function ProjectSprintsSection({
                 )}
               </div>
               <Link href={`/projects/${projectId}/board/${s.id}`}>
-                <Button variant="outline" size="sm">
+                <Button variant="brandOutline" size="sm">
                   View Board
                 </Button>
               </Link>
