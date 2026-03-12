@@ -114,7 +114,7 @@ export function ProjectEpicsSection({ projectId }: ProjectEpicsSectionProps) {
     <section>
       <div className="flex items-center justify-between gap-3 mb-3">
         <h2 className="text-lg font-semibold">Squad Epics</h2>
-        <Button variant="outline" size="sm" onClick={openCreate}>
+        <Button size="sm" onClick={openCreate}>
           สร้าง Epic
         </Button>
       </div>
@@ -142,21 +142,16 @@ export function ProjectEpicsSection({ projectId }: ProjectEpicsSectionProps) {
               </div>
               <div className="flex gap-2">
                 <Link href={`/epics/${epic.id}`}>
-                  <Button variant="outline" size="sm">
+                  <Button variant="brandOutline" size="sm">
                     ดูงาน
                   </Button>
                 </Link>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openEdit(epic)}
-                >
+                <Button variant="outline" size="sm" onClick={() => openEdit(epic)}>
                   แก้ไข
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="destructive"
                   size="sm"
-                  className="text-destructive hover:text-destructive"
                   onClick={() => handleDelete(epic)}
                   disabled={deletingId === epic.id}
                 >

@@ -150,7 +150,7 @@ export function GlobalEpicsPage() {
                 </div>
                 <div className="flex gap-2">
                   <Link href={`/epics/${epic.id}`}>
-                    <Button variant="outline" size="sm">
+                    <Button variant="brandOutline" size="sm">
                       ดูงาน
                     </Button>
                   </Link>
@@ -158,9 +158,8 @@ export function GlobalEpicsPage() {
                     แก้ไข
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="destructive"
                     size="sm"
-                    className="text-destructive hover:text-destructive"
                     onClick={() => handleDelete(epic)}
                     disabled={deletingId === epic.id}
                   >

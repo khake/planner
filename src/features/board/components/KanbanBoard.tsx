@@ -607,7 +607,7 @@ export function KanbanBoard({
           <span className="text-sm font-medium tabular-nums">{progressPercent}%</span>
           {sprintStatus === "planned" && (
             <Button
-              variant="default"
+              size="sm"
               onClick={handleStartSprint}
               disabled={startingSprint}
               className="ml-2"
@@ -616,7 +616,7 @@ export function KanbanBoard({
             </Button>
           )}
           {isActiveSprint && (
-            <Button variant="default" onClick={openCompleteSprintModal} className="ml-2">
+            <Button size="sm" onClick={openCompleteSprintModal} className="ml-2">
               Complete Sprint
             </Button>
           )}
