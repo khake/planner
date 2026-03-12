@@ -10,11 +10,12 @@ import { GripVertical } from "lucide-react";
 type DraggableTaskProps = {
   task: TaskWithAssignee;
   onClick?: (task: TaskWithAssignee) => void;
+  onDoubleClick?: (task: TaskWithAssignee) => void;
   /** ชื่อ Epic เมื่อ task ผูกกับ Epic */
   epicLabel?: string | null;
 };
 
-export function DraggableTask({ task, onClick, epicLabel = null }: DraggableTaskProps) {
+export function DraggableTask({ task, onClick, onDoubleClick, epicLabel = null }: DraggableTaskProps) {
   const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({
     id: task.id,
   });
@@ -25,6 +26,7 @@ export function DraggableTask({ task, onClick, epicLabel = null }: DraggableTask
     <div
       ref={setNodeRef}
       onClick={() => onClick?.(task)}
+      onDoubleClick={() => onDoubleClick?.(task)}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,

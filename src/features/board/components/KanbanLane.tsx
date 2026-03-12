@@ -15,6 +15,7 @@ type KanbanLaneProps = {
   coverImageByTask: Record<string, string>;
   epicLabelMap?: Record<string, string>;
   onCardClick: (task: TaskWithAssignee) => void;
+  onCardDoubleClick?: (task: TaskWithAssignee) => void;
 };
 
 export function KanbanLane({
@@ -25,6 +26,7 @@ export function KanbanLane({
   coverImageByTask,
   epicLabelMap = {},
   onCardClick,
+  onCardDoubleClick,
 }: KanbanLaneProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `lane-${id}` });
 
@@ -49,6 +51,7 @@ export function KanbanLane({
               coverImageUrl={coverImageByTask[task.id]}
               epicLabel={task.epic_id ? epicLabelMap[task.epic_id] ?? null : null}
               onClick={() => onCardClick(task)}
+              onDoubleClick={() => onCardDoubleClick?.(task)}
             />
           ))}
         </div>

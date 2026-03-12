@@ -139,6 +139,7 @@ export function KanbanBoard({
   const [loading, setLoading] = useState(true);
   const [activeTask, setActiveTask] = useState<TaskWithAssignee | null>(null);
   const [modalTask, setModalTask] = useState<TaskWithAssignee | null>(null);
+  const [modalInitialMode, setModalInitialMode] = useState<"view" | "edit">("view");
   const [showCompleteSprintModal, setShowCompleteSprintModal] = useState(false);
   const [incompleteDestination, setIncompleteDestination] = useState<"backlog" | string>("backlog");
   const [plannedSprints, setPlannedSprints] = useState<Sprint[]>([]);
@@ -428,6 +429,12 @@ export function KanbanBoard({
   };
 
   const handleCardClick = (task: TaskWithAssignee) => {
+    setModalInitialMode("view");
+    setModalTask(task);
+  };
+
+  const handleCardDoubleClick = (task: TaskWithAssignee) => {
+    setModalInitialMode("edit");
     setModalTask(task);
   };
 
@@ -633,16 +640,17 @@ export function KanbanBoard({
       >
         <div className="grid grid-cols-4 gap-4 overflow-x-auto pb-4">
           {LANES.map((lane) => (
-            <KanbanLane
-              key={lane.id}
-              id={lane.id}
-              title={lane.label}
-              tasks={tasksByStatus(lane.id)}
-              attachmentCounts={attachmentCounts}
-              coverImageByTask={coverImageByTask}
-              epicLabelMap={epicLabelMap}
-              onCardClick={handleCardClick}
-            />
+              <KanbanLane
+                key={lane.id}
+                id={lane.id}
+                title={lane.label}
+                tasks={tasksByStatus(lane.id)}
+                attachmentCounts={attachmentCounts}
+                coverImageByTask={coverImageByTask}
+                epicLabelMap={epicLabelMap}
+                onCardClick={handleCardClick}
+                onCardDoubleClick={handleCardDoubleClick}
+              />
           ))}
         </div>
 
@@ -667,6 +675,8 @@ export function KanbanBoard({
           users={users}
           sprintId={sprintId}
           projectId={projectId}
+          initialMode={modalInitialMode}
+          autoFocusDescription={modalInitialMode === "edit"}
           onClose={handleModalClose}
           onSaved={handleModalSaved}
           onDeleted={handleModalDeleted}

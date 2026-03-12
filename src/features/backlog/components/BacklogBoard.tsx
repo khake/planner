@@ -85,6 +85,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
   const [loading, setLoading] = useState(true);
   const [activeTask, setActiveTask] = useState<TaskWithAssignee | null>(null);
   const [modalTask, setModalTask] = useState<TaskWithAssignee | null>(null);
+  const [modalInitialMode, setModalInitialMode] = useState<"view" | "edit">("view");
   const [showCreateSprint, setShowCreateSprint] = useState(false);
   const [creatingIn, setCreatingIn] = useState<null | "backlog" | string>(null);
   const [newCardTitle, setNewCardTitle] = useState("");
@@ -433,6 +434,12 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
   }, [fetchData, showToast]);
 
   const handleCardClick = useCallback((task: TaskWithAssignee) => {
+    setModalInitialMode("view");
+    setModalTask(task);
+  }, []);
+
+  const handleCardDoubleClick = useCallback((task: TaskWithAssignee) => {
+    setModalInitialMode("edit");
     setModalTask(task);
   }, []);
 
@@ -554,6 +561,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
         [sprintId]: (s[sprintId] ?? []).map((t) => (t.id === tempId ? createdTask : t)),
       }));
     }
+    setModalInitialMode("edit");
     setModalTask(createdTask);
 
     // log create task
@@ -650,7 +658,13 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
               <SortableContext items={filteredBacklogTasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
                   {filteredBacklogTasks.map((task) => (
-                    <DraggableTask key={task.id} task={task} onClick={handleCardClick} epicLabel={task.epic_id ? epicLabelMap[task.epic_id] ?? null : null} />
+                    <DraggableTask
+                      key={task.id}
+                      task={task}
+                      onClick={handleCardClick}
+                      onDoubleClick={handleCardDoubleClick}
+                      epicLabel={task.epic_id ? epicLabelMap[task.epic_id] ?? null : null}
+                    />
                   ))}
                 </div>
               </SortableContext>
@@ -787,6 +801,7 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
                                 key={task.id}
                                 task={task}
                                 onClick={handleCardClick}
+                                onDoubleClick={handleCardDoubleClick}
                                 epicLabel={
                                   task.epic_id ? epicLabelMap[task.epic_id] ?? null : null
                                 }
@@ -854,6 +869,8 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
           users={users}
           sprintId={modalTask.sprint_id ?? ""}
           projectId={projectId}
+          initialMode={modalInitialMode}
+          autoFocusDescription={modalInitialMode === "edit"}
           onClose={handleModalClose}
           onSaved={handleModalSaved}
           onDeleted={handleModalDeleted}
