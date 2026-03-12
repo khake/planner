@@ -186,6 +186,9 @@ async function seedHpc70() {
       status,
       priority,
       assignee_id: null,
+      qa_status: "pending",
+      qa_assignee_id: null,
+      qa_checklist: [],
     });
   }
 

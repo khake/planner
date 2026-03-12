@@ -33,12 +33,21 @@ import {
 const LANES: { id: BoardLaneStatus; label: string }[] = [
   { id: "todo", label: "Todo" },
   { id: "in_progress", label: "In Progress" },
+  { id: "ready_for_qa", label: "Ready for QA" },
+  { id: "qa_in_progress", label: "QA In Progress" },
   { id: "review", label: "Review" },
   { id: "done", label: "Done" },
 ];
 
 type BoardLaneStatus = Exclude<TaskStatus, "backlog">;
-const BOARD_STATUSES: BoardLaneStatus[] = ["todo", "in_progress", "review", "done"];
+const BOARD_STATUSES: BoardLaneStatus[] = [
+  "todo",
+  "in_progress",
+  "ready_for_qa",
+  "qa_in_progress",
+  "review",
+  "done",
+];
 const POSITION_GAP = 1024;
 
 const THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -68,6 +77,8 @@ function createEmptyLanes(): LaneState {
   return {
     todo: [],
     in_progress: [],
+    ready_for_qa: [],
+    qa_in_progress: [],
     review: [],
     done: [],
   };
@@ -650,6 +661,7 @@ export function KanbanBoard({
                 epicLabelMap={epicLabelMap}
                 onCardClick={handleCardClick}
                 onCardDoubleClick={handleCardDoubleClick}
+                users={users}
               />
           ))}
         </div>

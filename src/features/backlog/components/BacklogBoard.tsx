@@ -657,15 +657,22 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
             <DroppableSprint id="backlog" isBacklog>
               <SortableContext items={filteredBacklogTasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
-                  {filteredBacklogTasks.map((task) => (
-                    <DraggableTask
-                      key={task.id}
-                      task={task}
-                      onClick={handleCardClick}
-                      onDoubleClick={handleCardDoubleClick}
-                      epicLabel={task.epic_id ? epicLabelMap[task.epic_id] ?? null : null}
-                    />
-                  ))}
+                  {filteredBacklogTasks.map((task) => {
+                    const qaUser =
+                      task.qa_assignee_id &&
+                      users.find((u) => u.id === task.qa_assignee_id);
+                    return (
+                      <DraggableTask
+                        key={task.id}
+                        task={task}
+                        onClick={handleCardClick}
+                        onDoubleClick={handleCardDoubleClick}
+                        epicLabel={task.epic_id ? epicLabelMap[task.epic_id] ?? null : null}
+                        qaAssigneeName={qaUser?.name ?? null}
+                        isQaFailed={task.qa_status === "failed"}
+                      />
+                    );
+                  })}
                 </div>
               </SortableContext>
             </DroppableSprint>
@@ -796,17 +803,24 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
                           strategy={verticalListSortingStrategy}
                         >
                           <div className="space-y-1.5">
-                            {(filteredTasksBySprint[sprint.id] ?? []).map((task) => (
-                              <DraggableTask
-                                key={task.id}
-                                task={task}
-                                onClick={handleCardClick}
-                                onDoubleClick={handleCardDoubleClick}
-                                epicLabel={
-                                  task.epic_id ? epicLabelMap[task.epic_id] ?? null : null
-                                }
-                              />
-                            ))}
+                            {(filteredTasksBySprint[sprint.id] ?? []).map((task) => {
+                              const qaUser =
+                                task.qa_assignee_id &&
+                                users.find((u) => u.id === task.qa_assignee_id);
+                              return (
+                                <DraggableTask
+                                  key={task.id}
+                                  task={task}
+                                  onClick={handleCardClick}
+                                  onDoubleClick={handleCardDoubleClick}
+                                  epicLabel={
+                                    task.epic_id ? epicLabelMap[task.epic_id] ?? null : null
+                                  }
+                                  qaAssigneeName={qaUser?.name ?? null}
+                                  isQaFailed={task.qa_status === "failed"}
+                                />
+                              );
+                            })}
                           </div>
                         </SortableContext>
                       </DroppableSprint>

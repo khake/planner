@@ -24,13 +24,13 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.47.0",
-    "@tiptap/extension-link": "^3.20.0",
-    "@tiptap/extension-placeholder": "^3.20.0",
+    "@tiptap/extension-link": "^3.20.1",
+    "@tiptap/extension-placeholder": "^3.20.1",
     "@tiptap/extension-underline": "^3.20.0",
-    "@tiptap/react": "^3.20.0",
-    "@tiptap/starter-kit": "^3.20.0",
-    "@uiw/react-md-editor": "^4.0.4",
+    "@tiptap/react": "^3.20.1",
+    "@tiptap/starter-kit": "^3.20.1",
     "@uiw/react-markdown-preview": "^5.0.0",
+    "@uiw/react-md-editor": "^4.0.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.35.0",
@@ -41,7 +41,8 @@
     "react-markdown": "^9.0.1",
     "remark-gfm": "^4.0.0",
     "sanitize-html": "^2.17.1",
-    "tailwind-merge": "^2.5.4"
+    "tailwind-merge": "^2.5.4",
+    "tiptap-markdown": "^0.9.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
