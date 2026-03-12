@@ -9,9 +9,8 @@ import { fetchSquadEpics, fetchGlobalEpics } from "@/lib/epic";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RichTextEditor } from "@/components/rich-text-editor";
-import { RichTextViewer } from "@/components/rich-text-viewer";
-import { isRichTextEmpty, sanitizeRichTextHtml } from "@/lib/rich-text";
+import { MarkdownEditor } from "@/components/markdown-editor";
+import { MarkdownViewer } from "@/components/markdown-viewer";
 import { getTagClassName, getTaskTypeMeta, normalizeTaskTag } from "@/lib/task-ui";
 import { cn } from "@/lib/utils";
 import { Paperclip, Download, Trash2, Image as ImageIcon, FileText, File, X, Maximize2, MessageCircle, Send, Plus, XCircle, Copy, ExternalLink, Pencil } from "lucide-react";
@@ -149,6 +148,8 @@ type TaskModalProps = {
   onClose: () => void;
   onSaved: () => void;
   onDeleted: () => void;
+  initialMode?: "view" | "edit";
+  autoFocusDescription?: boolean;
 };
 
 export function TaskModal({
@@ -158,8 +159,10 @@ export function TaskModal({
   onClose,
   onSaved,
   onDeleted,
+  initialMode = "view",
+  autoFocusDescription = false,
 }: TaskModalProps) {
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(initialMode === "edit");
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
   const [issueType, setIssueType] = useState<TaskType>(task.type);
@@ -190,7 +193,16 @@ export function TaskModal({
   const [sendingComment, setSendingComment] = useState(false);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
   const supabase = createClient();
-  const canSendComment = !isRichTextEmpty(newComment);
+  const canSendComment = newComment.trim().length > 0;
+  const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    if (autoFocusDescription && isEditMode && descriptionRef.current) {
+      descriptionRef.current.focus();
+      const len = descriptionRef.current.value.length;
+      descriptionRef.current.setSelectionRange(len, len);
+    }
+  }, [autoFocusDescription, isEditMode]);
 
   const loadAttachments = useCallback(async () => {
     const { data, error } = await supabase
@@ -294,8 +306,8 @@ export function TaskModal({
 
   const handleSendComment = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    const content = sanitizeRichTextHtml(newComment);
-    if (isRichTextEmpty(content)) return;
+    const content = newComment.trim();
+    if (!content) return;
     setSendingComment(true);
     const author = commentAuthorId ? users.find((u) => u.id === commentAuthorId) : null;
     const authorName = currentUserName || author?.name || "ผู้ใช้";
@@ -455,7 +467,7 @@ export function TaskModal({
     e.preventDefault();
     if (!title.trim()) return;
     setSaving(true);
-    const safeDescription = sanitizeRichTextHtml(description);
+    const markdownDescription = description.trim();
     const nextBoardPosition =
       task.sprint_id && status !== "backlog" && status !== task.status
         ? await getNextBoardPositionForLane(
@@ -473,7 +485,7 @@ export function TaskModal({
         type: issueType,
         parent_id: parentId || null,
         title: title.trim(),
-        description: isRichTextEmpty(safeDescription) ? null : safeDescription,
+        description: markdownDescription === "" ? null : markdownDescription,
         tags,
         status,
         board_position: nextBoardPosition,
@@ -593,9 +605,9 @@ export function TaskModal({
                     <h3 className="text-base font-semibold text-[#222222]">
                       {task.title}
                     </h3>
-                    {description && !isRichTextEmpty(description) && (
+                    {description && description.trim() && (
                       <div className="mt-2 rounded-lg border bg-card/40 px-4 py-3">
-                        <RichTextViewer html={description} className="text-sm leading-6" />
+                        <MarkdownViewer value={description} className="text-sm leading-6" />
                       </div>
                     )}
                   </div>
@@ -749,13 +761,12 @@ export function TaskModal({
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col">
                   <Label htmlFor="modal-desc">รายละเอียด / Requirement</Label>
-                  <RichTextEditor
+                  <MarkdownEditor
                     value={description}
                     onChange={setDescription}
-                    placeholder="พิมพ์ requirement, หมายเหตุ หรือรายละเอียดงาน..."
+                    placeholder="พิมพ์ requirement, หมายเหตุ หรือรายละเอียดงาน (Markdown รองรับหัวข้อ, ลิสต์, code block)"
                     className="mt-1 flex-1"
-                    contentClassName="flex-1"
-                    fullHeight
+                    textareaRef={descriptionRef}
                     disabled={deleting}
                     submitting={saving}
                   />
@@ -1254,10 +1265,7 @@ export function TaskModal({
                                       : ""}
                                   </time>
                                 </div>
-                                <RichTextViewer
-                                  html={c.content}
-                                  className="mt-1 text-sm"
-                                />
+                                <MarkdownViewer value={c.content} className="mt-1 text-sm" />
                               </div>
                             </div>
                           );
@@ -1286,10 +1294,10 @@ export function TaskModal({
                       <span className="min-w-0 max-w-[160px] truncate">{currentUserName}</span>
                     </div>
                     <div className="min-h-[80px] min-w-0 shrink-0">
-                      <RichTextEditor
+                      <MarkdownEditor
                         value={newComment}
                         onChange={setNewComment}
-                        placeholder="พิมพ์คอมเมนต์... รองรับตัวหนา ลิสต์ ลิงก์ และ code block"
+                        placeholder="พิมพ์คอมเมนต์ด้วย Markdown เช่น **ตัวหนา**, - ลิสต์, [ลิงก์](https://...)"
                         className="min-h-0 min-w-0 bg-background"
                         compact
                         disabled={saving || loadingComments}

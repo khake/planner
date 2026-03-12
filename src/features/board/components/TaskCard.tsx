@@ -11,6 +11,7 @@ import { getTagClassName, getTaskTypeMeta } from "@/lib/task-ui";
 type TaskCardProps = {
   task: TaskWithAssignee;
   onClick?: () => void;
+  onDoubleClick?: () => void;
   isDragging?: boolean;
   attachmentCount?: number;
   coverImageUrl?: string | null;
@@ -21,6 +22,7 @@ type TaskCardProps = {
 export function TaskCard({
   task,
   onClick,
+  onDoubleClick,
   isDragging,
   attachmentCount = 0,
   coverImageUrl = null,
@@ -49,6 +51,10 @@ export function TaskCard({
       onClick={(e) => {
         e.stopPropagation();
         onClick?.();
+      }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        onDoubleClick?.();
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
