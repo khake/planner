@@ -119,11 +119,6 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // ล้าง cookie ที่ไม่ valid เพื่อไม่ให้ retry วนซ้ำทุก request
-  if (hasRefreshError) {
-    await supabase.auth.signOut({ scope: "local" });
-  }
-
   return {
     response: supabaseResponse,
     userId,
