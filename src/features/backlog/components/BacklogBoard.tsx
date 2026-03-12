@@ -658,9 +658,9 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
               <SortableContext items={filteredBacklogTasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
                   {filteredBacklogTasks.map((task) => {
-                    const qaUser =
-                      task.qa_assignee_id &&
-                      users.find((u) => u.id === task.qa_assignee_id);
+                    const qaUser = task.qa_assignee_id
+                      ? users.find((u) => u.id === task.qa_assignee_id) ?? null
+                      : null;
                     return (
                       <DraggableTask
                         key={task.id}
@@ -804,9 +804,9 @@ export function BacklogBoard({ projectId, projectName, openCreateSprint = false 
                         >
                           <div className="space-y-1.5">
                             {(filteredTasksBySprint[sprint.id] ?? []).map((task) => {
-                              const qaUser =
-                                task.qa_assignee_id &&
-                                users.find((u) => u.id === task.qa_assignee_id);
+                              const qaUser = task.qa_assignee_id
+                                ? users.find((u) => u.id === task.qa_assignee_id) ?? null
+                                : null;
                               return (
                                 <DraggableTask
                                   key={task.id}

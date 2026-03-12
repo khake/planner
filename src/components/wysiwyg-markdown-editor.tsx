@@ -55,18 +55,22 @@ export function WysiwygMarkdownEditor({
       },
     },
     onUpdate({ editor }) {
-      const markdown = editor.storage.markdown.getMarkdown();
+      const markdownStorage = editor.storage as unknown as {
+        markdown: { getMarkdown: () => string };
+      };
+      const markdown = markdownStorage.markdown.getMarkdown();
       onChange(markdown);
     },
   });
 
   useEffect(() => {
     if (!editor) return;
-    const current = editor.storage.markdown.getMarkdown();
+    const markdownStorage = editor.storage as unknown as {
+      markdown: { getMarkdown: () => string };
+    };
+    const current = markdownStorage.markdown.getMarkdown();
     if (current !== value) {
-      editor.commands.setContent(value || "", false, {
-        parseOptions: { preserveWhitespace: "full" },
-      });
+      editor.commands.setContent(value || "");
     }
   }, [value, editor]);
 
