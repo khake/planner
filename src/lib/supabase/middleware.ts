@@ -37,33 +37,16 @@ export async function updateSession(request: NextRequest) {
   // สำคัญมากสำหรับ SSR: ให้ middleware เป็นจุดกลางในการ refresh/validate session
   let claimsSub: string | undefined;
   let userId: string | undefined;
-  let hasRefreshError = false;
 
   try {
     const { data, error } = await supabase.auth.getClaims();
     if (error) {
-      const err = error as { code?: string; message?: string };
-      if (
-        err?.code === "refresh_token_not_found" ||
-        err?.code === "invalid_refresh_token" ||
-        err?.message?.includes("Refresh Token")
-      ) {
-        hasRefreshError = true;
-      }
       logAuthDiagnostic("warn", "middleware.public.refresh_failed", request, {
         error: getDiagnosticErrorPayload(error),
       });
     }
     claimsSub = data?.claims?.sub;
   } catch (error) {
-    const err = error as { code?: string; message?: string };
-    if (
-      err?.code === "refresh_token_not_found" ||
-      err?.code === "invalid_refresh_token" ||
-      err?.message?.includes("Refresh Token")
-    ) {
-      hasRefreshError = true;
-    }
     logAuthDiagnostic("warn", "middleware.public.refresh_exception", request, {
       error: getDiagnosticErrorPayload(error),
     });
@@ -82,14 +65,6 @@ export async function updateSession(request: NextRequest) {
 
     if (error) {
       const err = error as { code?: string; message?: string };
-      if (
-        err?.code === "refresh_token_not_found" ||
-        err?.code === "invalid_refresh_token" ||
-        err?.message?.includes("Refresh Token") ||
-        err?.message?.includes("Auth session missing")
-      ) {
-        hasRefreshError = true;
-      }
       // ไม่ log เมื่อไม่มี cookie และเป็น Auth session missing (ผู้เยี่ยมชมหน้า public ปกติ)
       const isNoSessionNoCookie =
         authCookieNames.length === 0 && err?.message?.includes("Auth session missing");
@@ -102,14 +77,6 @@ export async function updateSession(request: NextRequest) {
     userId = user?.id;
   } catch (error) {
     const err = error as { code?: string; message?: string };
-    if (
-      err?.code === "refresh_token_not_found" ||
-      err?.code === "invalid_refresh_token" ||
-      err?.message?.includes("Refresh Token") ||
-      err?.message?.includes("Auth session missing")
-    ) {
-      hasRefreshError = true;
-    }
     const isNoSessionNoCookie =
       authCookieNames.length === 0 && err?.message?.includes("Auth session missing");
     if (!isNoSessionNoCookie) {
