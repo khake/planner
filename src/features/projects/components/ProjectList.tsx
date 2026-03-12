@@ -251,7 +251,7 @@ export function ProjectList() {
                 </h3>
                 <p className="mt-1 text-sm text-[#555555]">
                   การลบ Squad{" "}
-                  <span className="font-semibold">"{projectToDelete.name}"</span>{" "}
+                  <span className="font-semibold">&quot;{projectToDelete.name}&quot;</span>{" "}
                   จะลบข้อมูลที่เกี่ยวข้องทั้งหมดใน Squad นี้ออกจากระบบอย่างถาวร
                 </p>
               </div>

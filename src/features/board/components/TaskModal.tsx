@@ -223,7 +223,7 @@ export function TaskModal({
   const canSendComment = newComment.trim().length > 0;
   const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
   const [qaAssigneeId, setQaAssigneeId] = useState<string>(task.qa_assignee_id ?? "");
-  const [qaStatus, setQaStatus] = useState<"pending" | "passed" | "failed">(
+  const [qaStatus] = useState<"pending" | "passed" | "failed">(
     (task.qa_status as "pending" | "passed" | "failed") || "pending"
   );
   const [qaChecklist, setQaChecklist] = useState<QaChecklistItem[]>(
