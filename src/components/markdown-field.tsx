@@ -2,8 +2,8 @@
 
 import type { Ref } from "react";
 import { cn } from "@/lib/utils";
+import { MarkdownEditor } from "@/components/markdown-editor";
 import { MarkdownViewer } from "@/components/markdown-viewer";
-import { WysiwygMarkdownEditor } from "@/components/wysiwyg-markdown-editor";
 
 type MarkdownFieldProps = {
   value: string;
@@ -27,16 +27,21 @@ export function MarkdownField({
   compact,
   disabled,
   submitting,
+  onModEnter,
+  textareaRef,
 }: MarkdownFieldProps) {
   if (editable && onChange) {
     return (
-      <WysiwygMarkdownEditor
+      <MarkdownEditor
         value={value}
         onChange={onChange}
         placeholder={placeholder}
         className={className}
         compact={compact}
-        disabled={disabled || submitting}
+        disabled={disabled}
+        submitting={submitting}
+        onModEnter={onModEnter}
+        textareaRef={textareaRef}
       />
     );
   }
