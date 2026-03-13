@@ -799,7 +799,11 @@ export function TaskModal({
                           type="button"
                           size="sm"
                           variant="default"
-                          className="w-full justify-center"
+                          className={cn(
+                            "w-full justify-center transition-colors",
+                            allChecklistPassed &&
+                              "bg-emerald-500 text-white hover:bg-emerald-600"
+                          )}
                           disabled={!allChecklistPassed || saving || deleting}
                           onClick={() => void handleQaApprove()}
                         >
