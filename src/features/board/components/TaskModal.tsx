@@ -1597,7 +1597,7 @@ export function TaskModal({
                         placeholder="พิมพ์คอมเมนต์ด้วย Markdown เช่น **ตัวหนา**, - ลิสต์, [ลิงก์](https://...)"
                         className="min-h-0 min-w-0 bg-background"
                         compact
-                        disabled={saving || loadingComments}
+                        disabled={loadingComments}
                         submitting={sendingComment}
                       />
                     </div>
